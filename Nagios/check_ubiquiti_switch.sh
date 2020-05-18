@@ -7,7 +7,7 @@
 #@  ./check_ubiquiti_switch.sh [-d] [-h] [-c] [-v] [-i] [-down]
 ##
 ## DESCRIPTION
-##   Monitor the status of an interface on a Ubiquiti EX switch using a read
+##   Monitor the status of an interface on a Ubiquiti switch using a read
 ##   ^ only SNMP community
 #-----------------------------------------------------------------------------
 ## PARAMETERS
