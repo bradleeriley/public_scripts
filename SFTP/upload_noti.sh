@@ -2,6 +2,7 @@
 # Brad Riley
 # ECG
 # Sends emails when files are created under /home in the incoming folders of sftp users.
+# Requires msmtp
 
 # Directory to monitor
 MONITORDIR="/home"
@@ -19,6 +20,6 @@ do
         echo $NEWFILE # Print the file created
         # Only send an email if the change  is created in an INCOMING folder and is a file
         if [[ $incoming == "INCOMING" && $user != "root" ]] ; then
-          printf "To: sc@ec-group.com\nFrom: SFTP1@ec-group.com\nSubject: $user has uploaded a file\n\nThe following file has been uploaded: ${NEWFILE}" | msmtp sc@ec-group.com
+          printf "To: recipient@ec-group.com\nFrom: sender@ec-group.com\nSubject: $user has uploaded a file\n\nThe following file has been uploaded: ${NEWFILE}" | msmtp sc@ec-group.com
         fi
 done
