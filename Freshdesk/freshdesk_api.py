@@ -1,4 +1,4 @@
-# When Check Point SR update tickets come in copy them to the corresponding ticket in freshdesk.
+# When Check Point SR update ticket comes in copy them to the corresponding ticket in freshdesk.
 # Grabs list of unresolved tickets, posts note to FD ticket, puts FD in open, deletes CP update FD ticket.
 # Brad Riley
 # 4.26.2019
