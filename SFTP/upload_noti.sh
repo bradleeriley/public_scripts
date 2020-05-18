@@ -2,7 +2,7 @@
 # Brad Riley
 # ECG
 # Sends emails when files are created under /home in the incoming folders of sftp users.
-# Requires msmtp
+# Requires msmtp and inotifywait
 
 # Directory to monitor
 MONITORDIR="/home"
