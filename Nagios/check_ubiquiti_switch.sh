@@ -4,10 +4,10 @@
 # check_ubiquiti_switch.sh
 #==============================================================================
 ## SYNOPSIS
-#@  ./check_ubiquiti_switch.sh [-d] [-h] [-c] [-v] [-i] [-down]
+#@  ./check_ubiquiti_switch.sh [-d DEBUG] [-h IP] [-c COMMUNITY] [-v VERSION] [-i INT] [-down]
 ##
 ## DESCRIPTION
-##   Monitor the status of an interface on a Ubiquiti switch using a read
+##   Monitor the status of an interface on a Ubiquiti EX switch using a read
 ##   ^ only SNMP community
 #-----------------------------------------------------------------------------
 ## PARAMETERS
@@ -37,7 +37,7 @@
 #==============================================================================
 # HISTORY
 #       2020-01-31 : BradR : Creation of script
-#       2020-02-07 : BradR : Added port description to -down port
+#		2020-02-07 : BradR : Added port description to -down port														 
 #
 #
 #==============================================================================
@@ -79,7 +79,10 @@ main() {
 
   # Pull the snmp interface indexes through snmpwalk
   snmpif=$(/usr/bin/snmpwalk -v $version -c $community $host $getifs)
-
+  if [ -z "$snmpif" ]; then # If snmp query times out
+    echo "Warning - SNMP Query timeout!"
+    exit 3
+  fi
   # Read each line of the snmpwalk output and put it in an array
   ADDR=()
   while read -r line; do
@@ -130,18 +133,18 @@ main() {
     exit 3
   fi
 
-  # Cut $ifStat down to just a number.
+  # Cut $ifStat down to just a number.								  
   ifStat="$(cut -d '=' -f2 <<< "$ifStat")"
   ifStat=$(echo "$ifStat" | tr -dc '0-7')
-  # Make sure its a number less than or equal to 7 in accordance to ifOperStatus (1.3.6.1.2.1.2.2.1.8.)
+  # Make sure its a number less than or equal to 7 in accordance to ifOperStatus (1.3.6.1.2.1.2.2.1.8.)																									   
   if (( "$ifStat" <= 7 )); then
     if [[ "$ifStat" == '1' ]]; then
       if [[ $downInt == True ]]; then
-        # If the interface is supposed to be down (from the -down flag) and is up, exit 2 and throw an alert.
+       # If the interface is supposed to be down (from the -down flag) and is up, exit 2 and throw an alert.																											 
         printf "CRITICAL - Port $interface is UP - This port should be down!\n"
         exit 2
       else
-        # If the interface is up and is supposed to be up, exit 0 so everything is fine.
+        # If the interface is up and is supposed to be up, exit 0 so everything is fine.																						
         ifLastChange=$(/usr/bin/snmpwalk -v "$version" -c "$community" "$host" "$lastChange${if_dict[$interface]}")
         ifLastChange=${ifLastChange#*(}
         portDescrip=$(/usr/bin/snmpget -Oqv -v "$version" -c "$community" "$host" "$ifAlias${if_dict[$interface]}")
@@ -150,37 +153,37 @@ main() {
       fi
     elif [[ "$ifStat" == '2' ]]; then
       if [[ $downInt == True ]]; then
-        # If the interface is supposed to be down (from the -down flag) and is down, exit 0 so everything is fine.
+		# If the interface is supposed to be down (from the -down flag) and is down, exit 0 so everything is fine.																										  
         printf "OK - Port $interface is DOWN\n"
         exit 0
       else
-        # If the interface is supposed to be up and is down, exit 2 and throw an alert.
+		# If the interface is supposed to be up and is down, exit 2 and throw an alert.																			   
         portDescrip=$(/usr/bin/snmpget -Oqv -v "$version" -c "$community" "$host" "$ifAlias${if_dict[$interface]}")
-        echo "CRITICAL - Port $interface is DOWN - $portDescrip\n"
+        printf "CRITICAL - Port $interface is DOWN - $portDescrip\n\n"
         exit 2
       fi
     elif [[ "$ifStat" == '3' ]]; then
-      # If you intend to have an interface in the testing state change the exit code to 0 for OK or 2 for critical
+      # If you intend to have an interface in the testing state change the exit code to 0 for OK or 2 for critical																												  
       echo "WARNING - $interface is in a TESTING state"
       exit 1
     elif [[ "$ifStat" == '4' ]]; then
-      # If your interface is broken on a hardware level, it might come up as unknown.
+      # If your interface is broken on a hardware level, it might come up as unknown.																					 
       echo "UNKNOWN - $interface is in an UNKNOWN state"
       exit 3
     elif [[ "$ifStat" == '5' ]]; then
       echo "WARNING - $interface is in a DORMANT state and waiting for external actions"
       exit 1
     elif [[ "$ifStat" == '6' ]]; then
-      # If an module SFP/port is removed, then it will state it is not present.
+      # If an module SFP/port is removed, then it will state it is not present.																			   
       echo "CRITICAL - $interface is NOT PRESENT"
       exit 2
     elif [[ "$ifStat" == '7' ]]; then
-      # If the box can detect something is wrong, it will state lower-layer down state.
+      # If the box can detect something is wrong, it will state lower-layer down state.																					   
       echo "CRITICAL - $interface is in a LOWER-LAYER DOWN state"
       exit 2
     fi
   else
-    # If we didn't get a ifOperStatus output, freak out and tell someone.
+    # If we didn't get a ifOperStatus output, freak out and tell someone.																		 
     echo "CRITICAL - Could not recognize output from interface poll!"
     echo "$ifStat"
     exit 2
@@ -188,7 +191,7 @@ main() {
   exit 1
 }
 
-# Positional not-so-magic parameters.  
+# Positional not-so-magic parameters.  									   
 while [[ $# -gt 0 ]]; do
   case "${1}" in
    --help)
