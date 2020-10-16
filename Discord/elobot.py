@@ -87,9 +87,10 @@ class settings:
             channel = message.channel
             await channel.send('Unable to find team: ' + str(teamName))
     
-    async def setBoardChannel(self, channel):
-        self.boardChannel = channel
-        await channel.send(":white_check_mark: Set board channel to: " + str(channel.name))
+    async def setBoardChannel(self, boardChannel, message):
+        channel = message.channel
+        self.boardChannel = boardChannel.id
+        await channel.send(":white_check_mark: Set board channel to: " + str(boardChannel.name))
         
 
     
@@ -170,6 +171,7 @@ async def setboardchannel(ctx, channel):
     if (set(botDict[str(ctx.guild.id)].roleList) & set(authorRoles)):
         try:
             channel = await commands.TextChannelConverter().convert(ctx, channel)
+            await botDict[str(ctx.guild.id)].setBoardChannel(channel, ctx.message)
         except commands.BadArgument:
             await ctx.send(f":x: Invalid syntax. Try: !setboardchannel #channelname")
 
