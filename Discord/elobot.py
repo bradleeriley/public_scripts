@@ -19,7 +19,7 @@ class settings:
         if type(guild) is dict:
             self.__dict__.update(guild)
         else:
-            self.guild = str(guild)
+            self.guild = guild
             self.blacklisted_channels = []
             self.roleList = []
             self.board = {}
@@ -72,10 +72,12 @@ class settings:
                 elo = int(elo)
                 self.board[str(teamName)] = elo
                 await channel.send(":white_check_mark: Added team " + str(teamName) + " with '" + str(elo) + "' elo")
+                await self.updateBoard(message.guild)
+                self.updateSettings()
             except ValueError:
                 await channel.send(':x: Invalid syntax')
                 return
-            self.updateSettings()
+            
         else:
             await channel.send(":x: Please set a board channel first with the command !setboardchannel #channelname")
 
@@ -83,6 +85,7 @@ class settings:
         try:
             teamName = str(teamName)
             self.board[str(teamName)] = elo
+            self.updateSettings()
         except KeyError:
             channel = message.channel
             await channel.send('Unable to find team: ' + str(teamName))
@@ -92,8 +95,25 @@ class settings:
         self.boardChannel = boardChannel.id
         await channel.send(":white_check_mark: Set board channel to: " + str(boardChannel.name))
         
+    async def updateBoard(self, guild):
+        def buildBoard(self):
+            displayBoard = []
+            for eachTeam in self.board.keys():
+                teamElo = self.board[str(eachTeam)]
+                standing = [str(eachTeam), teamElo]
+                displayBoard.append(standing)
+            return displayBoard.sort(key=lambda x: x[1])
+        board = buildBoard(self)
+        if self.boardID:
+            msg = await guild.fetch_message(self.boardID)
+            await msg.send(board)
+        else:
+            channel = await commands.TextChannelConverter().convert(guild, self.boardChannel)
+            await channel.send(board)
+            
 
-    
+        #else:
+
 @bot.event
 async def on_ready():
     for guild in bot.guilds:
@@ -106,8 +126,7 @@ async def on_ready():
             with open(str(guild.id) + '.json', 'r') as jsonFile:
                 config = json.load(jsonFile)
                 eloBot = settings(config)
-                botDict[str(guild.id)] = (eloBot)
-                print("Found existing file!")
+                botDict[str(guild.id)] = eloBot
     print(botDict)
 
 @bot.command()
@@ -164,6 +183,7 @@ async def addteam(ctx, teamName, elo):
     authorRoles = [role.id for role in ctx.message.author.roles]
     if (set(botDict[str(ctx.guild.id)].roleList) & set(authorRoles)):
         await botDict[str(ctx.guild.id)].addTeam(ctx.message, teamName, elo)
+        
 
 @bot.command()
 async def setboardchannel(ctx, channel):
