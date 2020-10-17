@@ -65,15 +65,19 @@ class settings:
         else:
             await channel.send(':x: There are currently no roles allowed')
 
-    async def addTeam(self, message, teamName, elo):
-        channel = message.channel
+    async def addTeam(self, ctx, teamName, elo):
+        channel = ctx.message.channel
         if self.boardChannel:
             try:
                 elo = int(elo)
-                self.board[str(teamName)] = elo
-                await channel.send(":white_check_mark: Added team " + str(teamName) + " with '" + str(elo) + "' elo")
-                await self.updateBoard(message.guild)
-                self.updateSettings()
+                if (str(teamName)) in self.board.keys():
+                    await channel.send(':x: Team already exists: ' + str(teamName))
+                    return                   
+                else:
+                    self.board[str(teamName)] = elo
+                    await channel.send(":white_check_mark: Added team " + str(teamName) + " with '" + str(elo) + "' elo")
+                    await self.updateBoard(ctx)
+                    self.updateSettings()
             except ValueError:
                 await channel.send(':x: Invalid syntax')
                 return
@@ -81,38 +85,85 @@ class settings:
         else:
             await channel.send(":x: Please set a board channel first with the command !setboardchannel #channelname")
 
-    async def setElo(self, teamName, elo, message):
+    async def deleteTeam(self, ctx, teamName):
+        channel = ctx.message.channel
+        if self.boardChannel:
+            try:
+                if str(teamName) in self.board.keys():
+                    del self.board[str(teamName)] 
+                    await channel.send(':white_check_mark: Removed team: ' + str(teamName))
+                    await self.updateBoard(ctx)
+                    self.updateSettings()
+                    return                   
+                else:
+                    await channel.send(":x: Team doesn't exist: " + str(teamName))
+                    return
+            except ValueError:
+                await channel.send(':x: Invalid syntax')
+                return
+            
+        else:
+            await channel.send(":x: Please set a board channel first with the command !setboardchannel #channelname")
+    async def setElo(self, ctx, teamName, elo):
+        channel = ctx.channel
         try:
-            teamName = str(teamName)
-            self.board[str(teamName)] = elo
+            self.board[str(teamName)] = int(elo)
+            await self.updateBoard(ctx)
             self.updateSettings()
+            await channel.send(":white_check_mark: Set elo for " + str(teamName) + " to " + str(elo))
+            return
         except KeyError:
-            channel = message.channel
-            await channel.send('Unable to find team: ' + str(teamName))
+            await channel.send(':x: Unable to find team: ' + str(teamName))
+            return
+        except ValueError:
+            await channel.send(':x: Invalid syntax try: !setelo "Team Name" 1900')
+            return
     
     async def setBoardChannel(self, boardChannel, message):
+        print(message.content)
         channel = message.channel
         self.boardChannel = boardChannel.id
+        self.updateSettings()
         await channel.send(":white_check_mark: Set board channel to: " + str(boardChannel.name))
         
-    async def updateBoard(self, guild):
-        def buildBoard(self):
-            displayBoard = []
-            for eachTeam in self.board.keys():
-                teamElo = self.board[str(eachTeam)]
-                standing = [str(eachTeam), teamElo]
-                displayBoard.append(standing)
-            return displayBoard.sort(key=lambda x: x[1])
-        board = buildBoard(self)
+    async def updateBoard(self, ctx):
+        displayBoard = []
+        for eachTeam in self.board.keys():
+            teamElo = self.board[str(eachTeam)]
+            standing = [str(eachTeam), teamElo]
+            displayBoard.append(standing)
+        displayBoard.sort(key=lambda x: x[1])
+        counter = len(displayBoard) + 1
+        standings = []
+        counter = 1
+        standings.reverse()
+        eloList = [x[1] for x in displayBoard]
+        print(eloList)
+        for eachTeam in displayBoard:
+            if eloList.count(eachTeam[1]) > 1:
+                eachTeam = "(" + str(counter) + "T) " + str(eachTeam[0]) + " - " + str(eachTeam[1])
+            else:
+                counter += 1
+                eachTeam = "(" + str(counter) + ") " + str(eachTeam[0]) + " - " + str(eachTeam[1])
+                
+            standings.append(eachTeam)
+        standings = "```\n" + "\n".join(standings) + "\n```"
         if self.boardID:
-            msg = await guild.fetch_message(self.boardID)
-            await msg.send(board)
+            try:
+                channel = await commands.TextChannelConverter().convert(ctx, str(self.boardChannel))
+                msg = await channel.fetch_message(self.boardID)
+                await msg.edit(content=standings)
+                self.updateSettings()
+            except discord.NotFound:
+                channel = await commands.TextChannelConverter().convert(ctx, str(self.boardChannel))
+                message = await channel.send(standings)
+                self.boardID = message.id
+                self.updateSettings()         
         else:
-            channel = await commands.TextChannelConverter().convert(guild, self.boardChannel)
-            await channel.send(board)
-            
-
-        #else:
+            channel = await commands.TextChannelConverter().convert(ctx, str(self.boardChannel))
+            message = await channel.send(standings)
+            self.boardID = message.id
+            self.updateSettings()
 
 @bot.event
 async def on_ready():
@@ -182,8 +233,19 @@ async def showroles(ctx):
 async def addteam(ctx, teamName, elo):
     authorRoles = [role.id for role in ctx.message.author.roles]
     if (set(botDict[str(ctx.guild.id)].roleList) & set(authorRoles)):
-        await botDict[str(ctx.guild.id)].addTeam(ctx.message, teamName, elo)
-        
+        await botDict[str(ctx.guild.id)].addTeam(ctx, teamName, elo)
+
+@bot.command()
+async def removeteam(ctx, teamName):
+    authorRoles = [role.id for role in ctx.message.author.roles]
+    if (set(botDict[str(ctx.guild.id)].roleList) & set(authorRoles)):
+        await botDict[str(ctx.guild.id)].deleteTeam(ctx, teamName) 
+@bot.command()
+async def setelo(ctx, teamName, elo):
+    authorRoles = [role.id for role in ctx.message.author.roles]
+    if (set(botDict[str(ctx.guild.id)].roleList) & set(authorRoles)):
+        await botDict[str(ctx.guild.id)].setElo(ctx, teamName, elo)
+
 
 @bot.command()
 async def setboardchannel(ctx, channel):
@@ -194,6 +256,13 @@ async def setboardchannel(ctx, channel):
             await botDict[str(ctx.guild.id)].setBoardChannel(channel, ctx.message)
         except commands.BadArgument:
             await ctx.send(f":x: Invalid syntax. Try: !setboardchannel #channelname")
+
+@bot.command()
+async def refreshboard(ctx):
+    authorRoles = [role.id for role in ctx.message.author.roles]
+    if (set(botDict[str(ctx.guild.id)].roleList) & set(authorRoles)):
+        await botDict[str(ctx.guild.id)].updateBoard(ctx)
+
 
 if __name__ == "__main__":      
     bot.run(TOKEN)
