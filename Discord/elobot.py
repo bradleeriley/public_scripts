@@ -70,7 +70,7 @@ class settings:
         if self.boardChannel:
             try:
                 elo = int(elo)
-                if (str(teamName)) in self.board.keys():
+                if (str(teamName.lower())) in (k.lower() for k in self.board.keys()):
                     await channel.send(':x: Team already exists: ' + str(teamName))
                     return                   
                 else:
@@ -133,19 +133,25 @@ class settings:
             standing = [str(eachTeam), teamElo]
             displayBoard.append(standing)
         displayBoard.sort(key=lambda x: x[1])
+        displayBoard.reverse()
         counter = len(displayBoard) + 1
         standings = []
-        counter = 1
-        standings.reverse()
+        counter = 0
         eloList = [x[1] for x in displayBoard]
+        added = False
         print(eloList)
         for eachTeam in displayBoard:
             if eloList.count(eachTeam[1]) > 1:
+                if added == False:
+                    counter += 1
+                    added = True
                 eachTeam = "(" + str(counter) + "T) " + str(eachTeam[0]) + " - " + str(eachTeam[1])
+
             else:
                 counter += 1
+                added = False
                 eachTeam = "(" + str(counter) + ") " + str(eachTeam[0]) + " - " + str(eachTeam[1])
-                
+            
             standings.append(eachTeam)
         standings = "```\n" + "\n".join(standings) + "\n```"
         if self.boardID:
