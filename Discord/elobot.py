@@ -2,6 +2,7 @@ import os
 import random
 import discord
 import json
+import math
 
 from discord.ext import commands
 from discord.utils import get
@@ -67,14 +68,18 @@ class settings:
 
     async def addTeam(self, ctx, teamName, elo):
         channel = ctx.message.channel
+        try:
+            teamName = await commands.RoleConverter().convert(ctx, teamName)
+        except discord.ext.commands.errors.RoleNotFound:
+            pass
         if self.boardChannel:
             try:
                 elo = int(elo)
-                if (str(teamName.lower())) in (k.lower() for k in self.board.keys()):
+                if (str(teamName.id) in (k for k in self.board.keys())):
                     await channel.send(':x: Team already exists: ' + str(teamName))
                     return                   
                 else:
-                    self.board[str(teamName)] = elo
+                    self.board[str(teamName.id)] = elo
                     await channel.send(":white_check_mark: Added team " + str(teamName) + " with '" + str(elo) + "' elo")
                     await self.updateBoard(ctx)
                     self.updateSettings()
@@ -87,10 +92,14 @@ class settings:
 
     async def deleteTeam(self, ctx, teamName):
         channel = ctx.message.channel
+        try:
+            teamName = await commands.RoleConverter().convert(ctx, teamName)
+        except discord.ext.commands.errors.RoleNotFound:
+            pass
         if self.boardChannel:
             try:
-                if str(teamName) in self.board.keys():
-                    del self.board[str(teamName)] 
+                if str(teamName.id) in self.board.keys():
+                    del self.board[str(teamName.id)] 
                     await channel.send(':white_check_mark: Removed team: ' + str(teamName))
                     await self.updateBoard(ctx)
                     self.updateSettings()
@@ -105,19 +114,28 @@ class settings:
         else:
             await channel.send(":x: Please set a board channel first with the command !setboardchannel #channelname")
     async def setElo(self, ctx, teamName, elo):
+        async def update(self, teamName, channel):
+            if str(teamName.id) in self.board.keys():
+                try:
+                    self.board[str(teamName.id)] = int(elo)
+                except ValueError:
+                    await channel.send(':x: Invalid syntax try: !setelo "Team Name" 1900')
+                    return
+                await self.updateBoard(ctx)
+                self.updateSettings()
+                await channel.send(":white_check_mark: Set elo for " + str(teamName) + " to " + str(elo))
+                return
+            else:
+                await channel.send(':x: Team not found: ' + str(teamName))
+                return
+        
         channel = ctx.channel
         try:
-            self.board[str(teamName)] = int(elo)
-            await self.updateBoard(ctx)
-            self.updateSettings()
-            await channel.send(":white_check_mark: Set elo for " + str(teamName) + " to " + str(elo))
-            return
-        except KeyError:
-            await channel.send(':x: Unable to find team: ' + str(teamName))
-            return
-        except ValueError:
-            await channel.send(':x: Invalid syntax try: !setelo "Team Name" 1900')
-            return
+            teamName = await commands.RoleConverter().convert(ctx, teamName)
+            await update(self, teamName, channel)
+        except discord.ext.commands.errors.RoleNotFound:
+                await channel.send(':x: Team not found: ' + str(teamName))
+                return
     
     async def setBoardChannel(self, boardChannel, message):
         print(message.content)
@@ -129,7 +147,9 @@ class settings:
     async def updateBoard(self, ctx):
         displayBoard = []
         for eachTeam in self.board.keys():
-            teamElo = self.board[str(eachTeam)]
+            eachTeam = "<@&" + str(eachTeam) + ">"
+            eachTeam = await commands.RoleConverter().convert(ctx, eachTeam)
+            teamElo = self.board[str(eachTeam.id)] 
             standing = [str(eachTeam), teamElo]
             displayBoard.append(standing)
         displayBoard.sort(key=lambda x: x[1])
@@ -146,7 +166,6 @@ class settings:
                     counter += 1
                     added = True
                 eachTeam = "(" + str(counter) + "T) " + str(eachTeam[0]) + " - " + str(eachTeam[1])
-
             else:
                 counter += 1
                 added = False
@@ -171,6 +190,27 @@ class settings:
             self.boardID = message.id
             self.updateSettings()
 
+    async def matchResult(self, ctx, team1, score, team2):
+        def calculateElo(currentElo, opponentElo, wins, loss):
+            newElo = currentElo + 150 * ((wins / (wins + loss)) - (1 / (1 + 10 ** ((opponentElo - currentElo) / 400)))) + 25 * ((wins - loss) / (abs(wins - loss)))
+            return newElo
+        team1Elo = self.board[str(team1.id)]
+        team2Elo = self.board[str(team2.id)]
+        score = score.split('-')
+        team1wins = score[0]
+        team2wins = score[1]
+
+        newTeam1Elo = round(calculateElo(team1Elo, team2Elo, int(team1wins), int(team2wins)))
+        team1diff = team1Elo - newTeam1Elo
+
+        newTeam2Elo = round(calculateElo(team2Elo, team1Elo, int(team2wins), int(team1wins)))
+        team2diff = team2Elo - newTeam2Elo
+
+
+
+
+        
+
 @bot.event
 async def on_ready():
     for guild in bot.guilds:
@@ -187,18 +227,9 @@ async def on_ready():
     print(botDict)
 
 @bot.command()
-async def check(ctx):
-    print(botDict[str(ctx.guild.id)].roleList)
-    roleIDs = [role.id for role in ctx.message.author.roles]
-    print(roleIDs)
-    if set(botDict[str(ctx.guild.id)].roleList) & set(roleIDs):
-        await ctx.send("You have permissions, nice.")
-
-@bot.command()
 @commands.has_permissions(administrator=True)
 async def addrole(ctx, role):
     try:
-        print(role)
         role = await commands.RoleConverter().convert(ctx, role)
     except commands.BadArgument:
         await ctx.send(f":x: Invalid syntax, try !role @rolename")
@@ -269,6 +300,17 @@ async def refreshboard(ctx):
     if (set(botDict[str(ctx.guild.id)].roleList) & set(authorRoles)):
         await botDict[str(ctx.guild.id)].updateBoard(ctx)
 
+@bot.command()
+async def addmatch(ctx, team1, score, team2):
+    authorRoles = [role.id for role in ctx.message.author.roles]
+    if (set(botDict[str(ctx.guild.id)].roleList) & set(authorRoles)):
+        try:
+            team1 = await commands.RoleConverter().convert(ctx, team1)
+            team2 = await commands.RoleConverter().convert(ctx, team2)
+        except discord.ext.commands.errors.RoleNotFound:
+            await ctx.send(':x: A role entered was not valid')
+            return
+        await botDict[str(ctx.guild.id)].matchResult(ctx, team1, score, team2)
 
 if __name__ == "__main__":      
     bot.run(TOKEN)
