@@ -26,7 +26,7 @@ class settings:
             self.board = {}
             self.boardID = 0
             self.boardChannel = 0
-            self.log = []
+            self.log = {}
     def __str__(self):
         return str(self.__dict__)
     def __repr__(self):
@@ -81,6 +81,7 @@ class settings:
                 else:
                     self.board[str(teamName.id)] = elo
                     await channel.send(":white_check_mark: Added team " + str(teamName) + " with '" + str(elo) + "' elo")
+                    self.log[str(teamName.id)] = [elo]
                     await self.updateBoard(ctx)
                     self.updateSettings()
             except ValueError:
@@ -100,6 +101,7 @@ class settings:
             try:
                 if str(teamName.id) in self.board.keys():
                     del self.board[str(teamName.id)] 
+                    del self.log[str(teamName.id)]
                     await channel.send(':white_check_mark: Removed team: ' + str(teamName))
                     await self.updateBoard(ctx)
                     self.updateSettings()
@@ -122,6 +124,7 @@ class settings:
                     await channel.send(':x: Invalid syntax try: !setelo "Team Name" 1900')
                     return
                 await self.updateBoard(ctx)
+                self.log[str(teamName.id)].append(int(elo))
                 self.updateSettings()
                 await channel.send(":white_check_mark: Set elo for " + str(teamName) + " to " + str(elo))
                 return
@@ -150,7 +153,7 @@ class settings:
             eachTeam = "<@&" + str(eachTeam) + ">"
             eachTeam = await commands.RoleConverter().convert(ctx, eachTeam)
             teamElo = self.board[str(eachTeam.id)] 
-            standing = [str(eachTeam), teamElo]
+            standing = [eachTeam, teamElo]
             displayBoard.append(standing)
         displayBoard.sort(key=lambda x: x[1])
         displayBoard.reverse()
@@ -161,17 +164,26 @@ class settings:
         added = False
         print(eloList)
         for eachTeam in displayBoard:
+            teamName = eachTeam[0].name
+            teamElo = eachTeam[1]
             if eloList.count(eachTeam[1]) > 1:
                 if added == False:
                     counter += 1
                     added = True
-                eachTeam = "(" + str(counter) + "T) " + str(eachTeam[0]) + " - " + str(eachTeam[1])
+                entry = "(" + str(counter) + "T) " + str(teamName) + " - " + str(teamElo) 
             else:
                 counter += 1
                 added = False
-                eachTeam = "(" + str(counter) + ") " + str(eachTeam[0]) + " - " + str(eachTeam[1])
-            
-            standings.append(eachTeam)
+                entry = "(" + str(counter) + ") " + str(teamName) + " - " + str(teamElo) 
+            if len(self.log[str(eachTeam[0].id)]) > 1:
+                    previousElo = self.log[str(eachTeam[0].id)][-2]
+                    eloDiff = teamElo - previousElo
+                    if eloDiff > 0:
+                        entry = entry + " (↑" + str(eloDiff) + ")"
+                    else:
+                        entry = entry + " (↓" + str(abs(eloDiff)) + ")"
+            standings.append(entry)
+
         standings = "```\n" + "\n".join(standings) + "\n```"
         if self.boardID:
             try:
@@ -201,10 +213,13 @@ class settings:
         team2wins = score[1]
 
         newTeam1Elo = round(calculateElo(team1Elo, team2Elo, int(team1wins), int(team2wins)))
-        team1diff = team1Elo - newTeam1Elo
-
+        self.board[str(team1.id)] = newTeam1Elo
+        self.log[(str(team1.id))].append(newTeam1Elo)
         newTeam2Elo = round(calculateElo(team2Elo, team1Elo, int(team2wins), int(team1wins)))
-        team2diff = team2Elo - newTeam2Elo
+        self.board[str(team2.id)] = newTeam2Elo
+        self.log[(str(team2.id))].append(newTeam2Elo)
+
+        await self.updateBoard(ctx)
 
 
 
