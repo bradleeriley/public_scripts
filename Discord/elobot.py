@@ -13,6 +13,7 @@ load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
 
 bot = commands.Bot(command_prefix='!')
+bot.remove_command('help')
 botDict = {}
 
 class settings:
@@ -34,8 +35,8 @@ class settings:
 
     def updateSettings(self):
         with open(str(self.guild) + '.json', 'w+') as newJsonFile:
-            print("Dumped Config to" +  str(self.guild) + '.json')
-            print(self.__dict__)
+            #print("Dumped Config to" +  str(self.guild) + '.json')
+            #print(self.__dict__)
             json.dump(self.__dict__, newJsonFile, indent=4)
 
     def setGuild(self, guild):
@@ -119,16 +120,17 @@ class settings:
     async def setElo(self, ctx, teamName, elo):
         async def update(self, teamName, channel):
             if str(teamName.id) in self.board.keys():
+                currentElo = self.board[str(teamName.id)]
                 try:
                     self.board[str(teamName.id)] = int(elo)
                 except ValueError:
-                    await channel.send(':x: Invalid syntax try: !setelo "Team Name" 1900')
+                    await channel.send(':x: Invalid syntax Example: !setelo "Team Name" 1900')
                     return
                 await self.updateBoard(ctx)
                 author = ctx.author.name
                 self.log[str(teamName.id)].append({int(elo) : str(author + ' Set elo')})
                 self.updateSettings()
-                await channel.send(":white_check_mark: Set elo for " + str(teamName) + " to " + str(elo))
+                await channel.send(":white_check_mark: " + str(teamName) + ": "  +  str(currentElo) + " -> " + str(elo))
                 return
             else:
                 await channel.send(':x: Team not found: ' + str(teamName))
@@ -143,7 +145,6 @@ class settings:
                 return
     
     async def setBoardChannel(self, boardChannel, message):
-        print(message.content)
         channel = message.channel
         self.boardChannel = boardChannel.id
         self.updateSettings()
@@ -164,7 +165,7 @@ class settings:
         counter = 0
         eloList = [x[1] for x in displayBoard]
         added = False
-        print(eloList)
+
         for eachTeam in displayBoard:
             teamName = eachTeam[0].name
             teamElo = eachTeam[1]
@@ -223,6 +224,22 @@ class settings:
         #self.log[(str(team2.id))].append(newTeam2Elo)
         self.log[str(team2.id)].append({int(newTeam2Elo) : str(team1.name + " " + score + " " + team2.name)})
         
+        embed=discord.Embed(title="Elo Summary")
+        diffElo = team1Elo - newTeam1Elo
+        if diffElo < 0:
+            arrow = '↑'
+        else:
+            arrow = '↓'
+        value = str(team1Elo) + ' -> ' + str(newTeam1Elo) + ' (' + arrow + str(abs(diffElo)) + ')'
+        embed.add_field(name=team1.name, value=value, inline=True)
+        diffElo = team2Elo - newTeam2Elo
+        if diffElo < 0:
+            arrow = '↑'
+        else:
+            arrow = '↓'
+        value = str(team2Elo) + ' -> ' + str(newTeam2Elo) + ' (' + arrow + str(abs(diffElo)) + ')'
+        embed.add_field(name=team2.name, value=value, inline=True)
+        await ctx.send(embed=embed)
         await self.updateBoard(ctx)
 
     async def displayhistory(self, ctx, team):
@@ -261,7 +278,6 @@ async def on_ready():
                 config = json.load(jsonFile)
                 eloBot = settings(config)
                 botDict[str(guild.id)] = eloBot
-    print(botDict)
 
 @bot.command()
 @commands.has_permissions(administrator=True)
@@ -344,8 +360,10 @@ async def addmatch(ctx, team1, score, team2):
             team1 = await commands.RoleConverter().convert(ctx, team1)
             team2 = await commands.RoleConverter().convert(ctx, team2)
         except discord.ext.commands.errors.RoleNotFound:
-            await ctx.send(':x: Role entered is not valid')
+            await ctx.send(':x: Role entered is not valid. Example: !addmatch @Reliquary 3-0 @Terry')
             return
+        if '-' not in score:
+            await ctx.send(':x: Incorrect syntax. Example: !addmatch @Reliquary 3-0 @Terry')
         await botDict[str(ctx.guild.id)].matchResult(ctx, team1, score, team2)
 
 @bot.command()
