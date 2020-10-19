@@ -1,3 +1,6 @@
+# Discord Elobot for Mordhau Fight Club
+# Runs elo calculations and maintains a leaderboard of teams
+
 import os
 import random
 import discord
@@ -280,6 +283,19 @@ async def on_ready():
                 config = json.load(jsonFile)
                 eloBot = settings(config)
                 botDict[str(guild.id)] = eloBot
+
+@bot.event
+async def on_guild_join(guild):
+    if os.path.isfile(str(guild.id) + '.json') == False:
+            with open(str(guild.id) + '.json', 'w+') as newJsonFile:
+                eloBot = settings(guild.id)
+                botDict[str(guild.id)] = (eloBot)
+                print(botDict)
+                json.dump(vars(eloBot), newJsonFile, indent=4)
+@bot.event
+async def on_guild_remove(guild):
+    if os.path.isfile(str(guild.id) + '.json') == True:
+        os.remove(str(guild.id) + '.json')
 
 @bot.command()
 @commands.has_permissions(administrator=True)
