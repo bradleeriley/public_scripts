@@ -443,9 +443,6 @@ async def showhistory(ctx, team):
 async def simulmatch(ctx, team1, score, team2):
     authorRoles = [role.id for role in ctx.message.author.roles]
     authorRoles = [str(i) for i in authorRoles]
-    print(set(botDict[str(ctx.guild.id)].board.keys()))
-    print(botDict[str(ctx.guild.id)].roleList)
-    print(set(authorRoles))
     if (set([str(i) for i in botDict[str(ctx.guild.id)].roleList]) & set(authorRoles)) or (set(botDict[str(ctx.guild.id)].board.keys()) & set(authorRoles)) :
         try:
             team1 = await commands.RoleConverter().convert(ctx, team1)
