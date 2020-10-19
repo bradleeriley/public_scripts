@@ -217,9 +217,15 @@ class settings:
         team1Elo = self.board[str(team1.id)]
         team2Elo = self.board[str(team2.id)]
         result = score.split('-')
-        team1wins = result[0]
-        team2wins = result[1]
-
+        try:
+            team1wins = int(result[0])
+            team2wins = int(result[1])
+        except ValueError:
+            await ctx.send(":x: Invalid Syntax. Score not integer.")
+            return
+        if (int(team1wins) > 3) or (int(team2wins) > 3):
+            await ctx.send(":x: Invalid Syntax. 3 wins maximum.")
+            return
         newTeam1Elo = round(calculateElo(team1Elo, team2Elo, int(team1wins), int(team2wins)))
         self.board[str(team1.id)] = newTeam1Elo
         #self.log[(str(team1.id))].append(newTeam1Elo)
