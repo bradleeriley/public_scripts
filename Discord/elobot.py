@@ -253,6 +253,43 @@ class settings:
         await ctx.send(embed=embed)
         await self.updateBoard(ctx)
 
+    async def simulResult(self, ctx, team1, score, team2):
+        def calculateElo(currentElo, opponentElo, wins, loss):
+            newElo = currentElo + 150 * ((wins / (wins + loss)) - (1 / (1 + 10 ** ((opponentElo - currentElo) / 400)))) + 25 * ((wins - loss) / (abs(wins - loss)))
+            return newElo
+        team1Elo = self.board[str(team1.id)]
+        team2Elo = self.board[str(team2.id)]
+        result = score.split('-')
+        try:
+            team1wins = int(result[0])
+            team2wins = int(result[1])
+        except ValueError:
+            await ctx.send(":x: Invalid Syntax. Score not integer.")
+            return
+        if (int(team1wins) > 3) or (int(team2wins) > 3):
+            await ctx.send(":x: Invalid Syntax. 3 wins maximum.")
+            return
+        newTeam1Elo = round(calculateElo(team1Elo, team2Elo, int(team1wins), int(team2wins)))
+        newTeam2Elo = round(calculateElo(team2Elo, team1Elo, int(team2wins), int(team1wins)))
+        
+        embed=discord.Embed(title="Simulation Summary")
+        diffElo = team1Elo - newTeam1Elo
+        if diffElo < 0:
+            arrow = '↑'
+        else:
+            arrow = '↓'
+        value = str(team1Elo) + ' -> ' + str(newTeam1Elo) + ' (' + arrow + str(abs(diffElo)) + ')'
+        embed.add_field(name=team1.name, value=value, inline=True)
+        diffElo = team2Elo - newTeam2Elo
+        if diffElo < 0:
+            arrow = '↑'
+        else:
+            arrow = '↓'
+        value = str(team2Elo) + ' -> ' + str(newTeam2Elo) + ' (' + arrow + str(abs(diffElo)) + ')'
+        embed.add_field(name=team2.name, value=value, inline=True)
+        await ctx.send(embed=embed)
+        await self.updateBoard(ctx)
+
     async def displayhistory(self, ctx, team):
         try:
             logList = self.log[str(team.id)]
@@ -278,6 +315,7 @@ class settings:
 
 @bot.event
 async def on_ready():
+    print("Starting Elobot...")
     for guild in bot.guilds:
         if os.path.isfile(str(guild.id) + '.json') == False:
             with open(str(guild.id) + '.json', 'w+') as newJsonFile:
@@ -289,6 +327,7 @@ async def on_ready():
                 config = json.load(jsonFile)
                 eloBot = settings(config)
                 botDict[str(guild.id)] = eloBot
+    print("Ready!")
 
 @bot.event
 async def on_guild_join(guild):
@@ -296,7 +335,6 @@ async def on_guild_join(guild):
             with open(str(guild.id) + '.json', 'w+') as newJsonFile:
                 eloBot = settings(guild.id)
                 botDict[str(guild.id)] = (eloBot)
-                print(botDict)
                 json.dump(vars(eloBot), newJsonFile, indent=4)
 @bot.event
 async def on_guild_remove(guild):
@@ -400,6 +438,24 @@ async def showhistory(ctx, team):
             await ctx.send(':x: Role entered is not valid')
             return
         await botDict[str(ctx.guild.id)].displayhistory(ctx, team)
+
+@bot.command()
+async def simulmatch(ctx, team1, score, team2):
+    authorRoles = [role.id for role in ctx.message.author.roles]
+    authorRoles = [str(i) for i in authorRoles]
+    print(set(botDict[str(ctx.guild.id)].board.keys()))
+    print(botDict[str(ctx.guild.id)].roleList)
+    print(set(authorRoles))
+    if (set([str(i) for i in botDict[str(ctx.guild.id)].roleList]) & set(authorRoles)) or (set(botDict[str(ctx.guild.id)].board.keys()) & set(authorRoles)) :
+        try:
+            team1 = await commands.RoleConverter().convert(ctx, team1)
+            team2 = await commands.RoleConverter().convert(ctx, team2)
+        except discord.ext.commands.errors.RoleNotFound:
+            await ctx.send(':x: Role entered is not valid. Example: !simulmatch Reliquary 3-0 Terry')
+            return
+        if '-' not in score:
+            await ctx.send(':x: Incorrect syntax. Example: !simulmatch Reliquary 3-0 Terry')
+        await botDict[str(ctx.guild.id)].simulResult(ctx, team1, score, team2)
 
 if __name__ == "__main__":      
     bot.run(TOKEN)
