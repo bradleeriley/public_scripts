@@ -81,7 +81,8 @@ class settings:
                 else:
                     self.board[str(teamName.id)] = elo
                     await channel.send(":white_check_mark: Added team " + str(teamName) + " with '" + str(elo) + "' elo")
-                    self.log[str(teamName.id)] = [elo]
+                    create_entry = [{int(elo) : 'Start'}]
+                    self.log[str(teamName.id)] = create_entry
                     await self.updateBoard(ctx)
                     self.updateSettings()
             except ValueError:
@@ -124,7 +125,8 @@ class settings:
                     await channel.send(':x: Invalid syntax try: !setelo "Team Name" 1900')
                     return
                 await self.updateBoard(ctx)
-                self.log[str(teamName.id)].append(int(elo))
+                author = ctx.author.name
+                self.log[str(teamName.id)].append({int(elo) : str(author + ' Set elo')})
                 self.updateSettings()
                 await channel.send(":white_check_mark: Set elo for " + str(teamName) + " to " + str(elo))
                 return
@@ -176,7 +178,7 @@ class settings:
                 added = False
                 entry = "(" + str(counter) + ") " + str(teamName) + " - " + str(teamElo) 
             if len(self.log[str(eachTeam[0].id)]) > 1:
-                    previousElo = self.log[str(eachTeam[0].id)][-2]
+                    previousElo =   int(list(self.log[str(eachTeam[0].id)][-2].keys())[0])
                     eloDiff = teamElo - previousElo
                     if eloDiff > 0:
                         entry = entry + " (↑" + str(eloDiff) + ")"
@@ -208,23 +210,43 @@ class settings:
             return newElo
         team1Elo = self.board[str(team1.id)]
         team2Elo = self.board[str(team2.id)]
-        score = score.split('-')
-        team1wins = score[0]
-        team2wins = score[1]
+        result = score.split('-')
+        team1wins = result[0]
+        team2wins = result[1]
 
         newTeam1Elo = round(calculateElo(team1Elo, team2Elo, int(team1wins), int(team2wins)))
         self.board[str(team1.id)] = newTeam1Elo
-        self.log[(str(team1.id))].append(newTeam1Elo)
+        #self.log[(str(team1.id))].append(newTeam1Elo)
+        self.log[str(team1.id)].append({int(newTeam1Elo) : str(team1.name + " " + score + " " + team2.name)})
         newTeam2Elo = round(calculateElo(team2Elo, team1Elo, int(team2wins), int(team1wins)))
         self.board[str(team2.id)] = newTeam2Elo
-        self.log[(str(team2.id))].append(newTeam2Elo)
-
+        #self.log[(str(team2.id))].append(newTeam2Elo)
+        self.log[str(team2.id)].append({int(newTeam2Elo) : str(team1.name + " " + score + " " + team2.name)})
+        
         await self.updateBoard(ctx)
 
+    async def displayhistory(self, ctx, team):
+        try:
+            logList = self.log[str(team.id)]
+        except KeyError:
+            await ctx.send(":x: Role not found in list of teams")
+            return
+        logList.reverse()
+        counter = -1
+        history = ""
+        for eachlog in logList:
+            if counter > -10:
+                elo = list(eachlog.keys())[0]
+                result = str(eachlog[elo])
+                history += str(abs(counter)) + '. ' + str(elo) + " : " + result + '\n'
+                counter -= 1
+            else:
+                break
+        title = "Elo History of " + team.name
+        embed=discord.Embed(title=title)
+        embed.add_field(name="Last 10 records", value=history, inline=True)
+        await ctx.send(embed=embed)
 
-
-
-        
 
 @bot.event
 async def on_ready():
@@ -298,7 +320,6 @@ async def setelo(ctx, teamName, elo):
     if (set(botDict[str(ctx.guild.id)].roleList) & set(authorRoles)):
         await botDict[str(ctx.guild.id)].setElo(ctx, teamName, elo)
 
-
 @bot.command()
 async def setboardchannel(ctx, channel):
     authorRoles = [role.id for role in ctx.message.author.roles]
@@ -323,9 +344,20 @@ async def addmatch(ctx, team1, score, team2):
             team1 = await commands.RoleConverter().convert(ctx, team1)
             team2 = await commands.RoleConverter().convert(ctx, team2)
         except discord.ext.commands.errors.RoleNotFound:
-            await ctx.send(':x: A role entered was not valid')
+            await ctx.send(':x: Role entered is not valid')
             return
         await botDict[str(ctx.guild.id)].matchResult(ctx, team1, score, team2)
+
+@bot.command()
+async def showhistory(ctx, team):
+    authorRoles = [role.id for role in ctx.message.author.roles]
+    if (set(botDict[str(ctx.guild.id)].roleList) & set(authorRoles)):
+        try:
+            team = await commands.RoleConverter().convert(ctx, team)
+        except discord.ext.commands.errors.RoleNotFound:
+            await ctx.send(':x: Role entered is not valid')
+            return
+        await botDict[str(ctx.guild.id)].displayhistory(ctx, team)
 
 if __name__ == "__main__":      
     bot.run(TOKEN)
