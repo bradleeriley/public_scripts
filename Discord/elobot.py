@@ -457,5 +457,28 @@ async def simulmatch(ctx, team1, score, team2):
             await ctx.send(':x: Incorrect syntax. Example: !simulmatch Reliquary 3-0 Terry')
         await botDict[str(ctx.guild.id)].simulResult(ctx, team1, score, team2)
 
+@bot.command()
+async def elobothelp(ctx):
+    authorRoles = [role.id for role in ctx.message.author.roles]
+    authorRoles = [str(i) for i in authorRoles]
+    if (set([str(i) for i in botDict[str(ctx.guild.id)].roleList]) & set(authorRoles)):
+        embed=discord.Embed(title="Elo Bot", description="Help")
+        embed.add_field(name="!elobothelp", value="Shows this menu.", inline=False)
+        embed.add_field(name="!showroles", value="Shows the roles that are allowed to run !setboardchannel, !addteam, !setelo, !removeteam, and !showhistory.", inline=False)
+        embed.add_field(name="!addrole @role", value="Add the role to the list of allowed roles in !showroles to run elo commands.", inline=False)
+        embed.add_field(name="!addteam @role integer", value="Use a role to create a team with the specified elo (replace integer with a number).", inline=False)
+        embed.add_field(name="!removeteam @role", value="Deletes a team from the leaderboard.", inline=False)
+        embed.add_field(name="!setelo @role integer", value="Manually set the elo of a team (replace integer with the elo you want to change it to.)", inline=False)
+        embed.add_field(name="!showhistory @role", value="Displays the last 10 elo changes for a team, and why,", inline=False)
+        embed.add_field(name="!addmatch @role int-int @role", value="Adds a match to the log and changes elo. Wins are capped to a max of 3.", inline=False)
+        embed.add_field(name="!simulmatch @role int-int @role", value="Simulates a matches results and the elo change from said match. Wins are capped to a max of 3.", inline=False)
+        await ctx.send(embed=embed)
+    elif (set(botDict[str(ctx.guild.id)].board.keys()) & set(authorRoles)):
+        embed=discord.Embed(title="Elo Bot", description="Help")
+        embed.add_field(name="!elobothelp", value="Shows this menu.", inline=False)
+        embed.add_field(name="!simulmatch @role int-int @role", value="Simulates a matches results and the elo change from said match. Wins are capped to a max of 3.", inline=False)
+        await ctx.send(embed=embed)
+
+
 if __name__ == "__main__":      
     bot.run(TOKEN)
