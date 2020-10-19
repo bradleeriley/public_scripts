@@ -72,7 +72,8 @@ class settings:
         try:
             teamName = await commands.RoleConverter().convert(ctx, teamName)
         except discord.ext.commands.errors.RoleNotFound:
-            pass
+            await ctx.send(":x: Role does not exist")
+            return 
         if self.boardChannel:
             try:
                 elo = int(elo)
@@ -98,7 +99,8 @@ class settings:
         try:
             teamName = await commands.RoleConverter().convert(ctx, teamName)
         except discord.ext.commands.errors.RoleNotFound:
-            pass
+            await ctx.send(":x: Role does not exist")
+            return 
         if self.boardChannel:
             try:
                 if str(teamName.id) in self.board.keys():
@@ -183,7 +185,7 @@ class settings:
                     eloDiff = teamElo - previousElo
                     if eloDiff > 0:
                         entry = entry + " (↑" + str(eloDiff) + ")"
-                    else:
+                    elif eloDiff < 0:
                         entry = entry + " (↓" + str(abs(eloDiff)) + ")"
             standings.append(entry)
 
