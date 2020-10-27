@@ -2,6 +2,8 @@
 
 These are scripts I've made. This is a work in progress and only displays the scripts I am able to publically disclose.
 
+Discord - This folder contains Discord bots I've created using the Python 3 library Discord.py
+
 Freshdesk - These are scripts made utilizing the API provided by Freshdesk ticketing software. 
 https://freshdesk.com/
 
