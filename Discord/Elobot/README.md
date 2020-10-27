@@ -29,6 +29,7 @@ The bot works off creating json files for each guild, the files are minimal in s
 `!setboardchannel channelMention` - Sets the channel to use for the leaderboard. Must be a channel mention.
 
 `!refreshboard` - Refreshes the board if there are any pending changes. This shouldn't be needed. I used it for debugging when I needed to update a team from its json file.
+
 `!addmatch roleMention Score-Score roleMention` - Adds a match between two teams with the maximum amount of wins being 3. It will update the elo in the leaderboard automatically and display an embedded message after sending the command displaying the elo change.
 
 `!simulmatch roleMention Score-Score roleMention` - Same thing as !addmatch except it won't update the leaderboard or log. Just to see the elo change on possible outcomes.
