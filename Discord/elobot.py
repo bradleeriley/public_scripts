@@ -12,18 +12,22 @@ from discord.utils import get
 from dotenv import load_dotenv
 from discord.ext.commands import RoleConverter
 
+# Storing Discord Bot token locally
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
 
-bot = commands.Bot(command_prefix='!')
-bot.remove_command('help')
+
+bot = commands.Bot(command_prefix='!') # Setting the bot prefix
+bot.remove_command('help') # Removes default help command from discord.py
+
+# All the bot settings will be stored here for each guild
 botDict = {}
 
 class settings:
     def __init__(self, guild):
-        if type(guild) is dict:
+        if type(guild) is dict: # If the guild exists, import it.
             self.__dict__.update(guild)
-        else:
+        else: # If its a new guild, create empty settings.
             self.guild = guild
             self.blacklisted_channels = []
             self.roleList = []
@@ -36,18 +40,15 @@ class settings:
     def __repr__(self):
         return str(self.__dict__)
 
-    def updateSettings(self):
+    def updateSettings(self): # Dump the settings into a json file with the guild ID as the file name.
         with open(str(self.guild) + '.json', 'w+') as newJsonFile:
-            #print("Dumped Config to" +  str(self.guild) + '.json')
-            #print(self.__dict__)
             json.dump(self.__dict__, newJsonFile, indent=4)
 
-    def setGuild(self, guild):
-        self.guild = guild.id
+    # Will use later
+    #def setBlackChannels(self, channel):
+        #self.blacklisted_channels.append(channel)
 
-    def setBlackChannels(self, channel):
-        self.blacklisted_channels.append(channel)
-
+    # Add an allowed role to use the bot (except for the !simulmatch command)
     async def addRole(self, role, message):
         channel = message.channel
         if role.id not in self.roleList:
@@ -58,6 +59,7 @@ class settings:
             await channel.send(':x: Role already exists: ' + str(role.name))
             return
     
+    # Removes a role from the allowed roles
     async def removerole(self, role, message):
         channel = message.channel
         if self.roleList:
@@ -70,20 +72,21 @@ class settings:
         else:
             await channel.send(':x: There are currently no roles allowed')
 
+    # Adds a role (team) with specified elo to the leaderboard then updates the json file.
     async def addTeam(self, ctx, teamName, elo):
-        channel = ctx.message.channel
-        try:
+        channel = ctx.message.channel # Get the channel the command was sent from
+        try: # Try to convert the team name into a role
             teamName = await commands.RoleConverter().convert(ctx, teamName)
         except discord.ext.commands.errors.RoleNotFound:
             await ctx.send(":x: Role does not exist")
             return 
-        if self.boardChannel:
+        if self.boardChannel: # Check to see if a leaderboard exists
             try:
-                elo = int(elo)
-                if (str(teamName.id) in (k for k in self.board.keys())):
+                elo = int(elo) # Try to see if the elo is actually a number
+                if (str(teamName.id) in (k for k in self.board.keys())): # Check to see if the team already exists.
                     await channel.send(':x: Team already exists: ' + str(teamName))
                     return                   
-                else:
+                else: # If its a new team create the key name of the team name and the value with the elo, update the json file. Let the user know it worked.
                     self.board[str(teamName.id)] = elo
                     await channel.send(":white_check_mark: Added team " + str(teamName) + " with '" + str(elo) + "' elo")
                     create_entry = [{int(elo) : 'Start'}]
@@ -92,11 +95,11 @@ class settings:
                     self.updateSettings()
             except ValueError:
                 await channel.send(':x: Invalid syntax')
-                return
-            
+                return 
         else:
             await channel.send(":x: Please set a board channel first with the command !setboardchannel #channelname")
 
+    # Removes a team from the leaderboard and updates the json for the guild.
     async def deleteTeam(self, ctx, teamName):
         channel = ctx.message.channel
         try:
@@ -122,6 +125,8 @@ class settings:
             
         else:
             await channel.send(":x: Please set a board channel first with the command !setboardchannel #channelname")
+    
+    # Manually change the elo of a team, then update the json.
     async def setElo(self, ctx, teamName, elo):
         async def update(self, teamName, channel):
             if str(teamName.id) in self.board.keys():
@@ -140,7 +145,6 @@ class settings:
             else:
                 await channel.send(':x: Team not found: ' + str(teamName))
                 return
-        
         channel = ctx.channel
         try:
             teamName = await commands.RoleConverter().convert(ctx, teamName)
@@ -148,13 +152,15 @@ class settings:
         except discord.ext.commands.errors.RoleNotFound:
                 await channel.send(':x: Team not found: ' + str(teamName))
                 return
-    
+
+    # Set the channel the leaderboard will be in. Passed channel object as boardChannel   
     async def setBoardChannel(self, boardChannel, message):
         channel = message.channel
         self.boardChannel = boardChannel.id
         self.updateSettings()
         await channel.send(":white_check_mark: Set board channel to: " + str(boardChannel.name))
         
+    # Looks at the board of the guild and rewrites the leaderboard in the board channel
     async def updateBoard(self, ctx):
         displayBoard = []
         for eachTeam in self.board.keys():
@@ -210,10 +216,14 @@ class settings:
             self.boardID = message.id
             self.updateSettings()
 
+    # Add a match between two teams with a max of 3 wins
+    # ex: !addmatch @Reliquary 3-0 @Syndicate
     async def matchResult(self, ctx, team1, score, team2):
         def calculateElo(currentElo, opponentElo, wins, loss):
+            # This is the actual elo calculation
             newElo = currentElo + 150 * ((wins / (wins + loss)) - (1 / (1 + 10 ** ((opponentElo - currentElo) / 400)))) + 25 * ((wins - loss) / (abs(wins - loss)))
             return newElo
+        # Format the command message into variables
         team1Elo = self.board[str(team1.id)]
         team2Elo = self.board[str(team2.id)]
         result = score.split('-')
@@ -226,6 +236,7 @@ class settings:
         if (int(team1wins) > 3) or (int(team2wins) > 3):
             await ctx.send(":x: Invalid Syntax. 3 wins maximum.")
             return
+        # Calculate the new elo for each team and add the new elo to the leaderboard as well as the log.
         newTeam1Elo = round(calculateElo(team1Elo, team2Elo, int(team1wins), int(team2wins)))
         self.board[str(team1.id)] = newTeam1Elo
         #self.log[(str(team1.id))].append(newTeam1Elo)
@@ -235,6 +246,7 @@ class settings:
         #self.log[(str(team2.id))].append(newTeam2Elo)
         self.log[str(team2.id)].append({int(newTeam2Elo) : str(team1.name + " " + score + " " + team2.name)})
         
+        # Put together the embedded message telling how much elo is lost or gained.
         embed=discord.Embed(title="Elo Summary")
         diffElo = team1Elo - newTeam1Elo
         if diffElo < 0:
@@ -253,6 +265,8 @@ class settings:
         await ctx.send(embed=embed)
         await self.updateBoard(ctx)
 
+    # Same thing as addmatch except it doesn't update the leaderboard or log
+    # Used to test elo calculation or see probable outcomes.
     async def simulResult(self, ctx, team1, score, team2):
         def calculateElo(currentElo, opponentElo, wins, loss):
             newElo = currentElo + 150 * ((wins / (wins + loss)) - (1 / (1 + 10 ** ((opponentElo - currentElo) / 400)))) + 25 * ((wins - loss) / (abs(wins - loss)))
@@ -290,6 +304,7 @@ class settings:
         await ctx.send(embed=embed)
         await self.updateBoard(ctx)
 
+    # Looks at the log for a team and displays the last 10 records with the win loss and elo change
     async def displayhistory(self, ctx, team):
         try:
             logList = self.log[str(team.id)]
@@ -312,7 +327,7 @@ class settings:
         embed.add_field(name="Last 10 records", value=history, inline=True)
         await ctx.send(embed=embed)
 
-
+# When the bot starts it will load the teams json files, so no data is lost.
 @bot.event
 async def on_ready():
     print("Starting Elobot...")
@@ -329,6 +344,7 @@ async def on_ready():
                 botDict[str(guild.id)] = eloBot
     print("Ready!")
 
+# When the bot joins a new guild, make a json file for it
 @bot.event
 async def on_guild_join(guild):
     if os.path.isfile(str(guild.id) + '.json') == False:
@@ -336,11 +352,14 @@ async def on_guild_join(guild):
                 eloBot = settings(guild.id)
                 botDict[str(guild.id)] = (eloBot)
                 json.dump(vars(eloBot), newJsonFile, indent=4)
+
+# If the bot is kicked or leaves a guild, delete the json.
 @bot.event
 async def on_guild_remove(guild):
     if os.path.isfile(str(guild.id) + '.json') == True:
         os.remove(str(guild.id) + '.json')
 
+# Only users with administrative priveledges in Discord can add an allowed role
 @bot.command()
 @commands.has_permissions(administrator=True)
 async def addrole(ctx, role):
@@ -350,7 +369,8 @@ async def addrole(ctx, role):
         await ctx.send(f":x: Invalid syntax, try !role @rolename")
         return
     await botDict[str(ctx.guild.id)].addRole(role, ctx.message)
-    
+
+# Only users with administrative priveledges in Discord can remove an allowed role
 @bot.command()
 @commands.has_permissions(administrator=True)
 async def removerole(ctx, role):
@@ -361,6 +381,8 @@ async def removerole(ctx, role):
         return
     await botDict[str(ctx.guild.id)].removerole(role, ctx.message)
 
+# Print a nice embed message listing the allowed roles.
+# Administrator and allowed roles can run this command.
 @bot.command()
 async def showroles(ctx):
     authorRoles = [role.id for role in ctx.message.author.roles]
@@ -381,23 +403,36 @@ async def showroles(ctx):
             embed.add_field(name="Roles", value="None", inline=True)
             await ctx.send(embed=embed)
 
+# Adds team with specified elo
+# ex: !addteam @20Royals 2000
+# ex: !addteam 20Royals 2000
+# ex: !addteam "Apeman A" 1500
 @bot.command()
 async def addteam(ctx, teamName, elo):
     authorRoles = [role.id for role in ctx.message.author.roles]
     if (set(botDict[str(ctx.guild.id)].roleList) & set(authorRoles)):
         await botDict[str(ctx.guild.id)].addTeam(ctx, teamName, elo)
 
+# Deletes a team from the leaderboard and log.
+# ex: !removeteam @Last Kings
+# ex: !removeteam "Last Kings"
 @bot.command()
 async def removeteam(ctx, teamName):
     authorRoles = [role.id for role in ctx.message.author.roles]
     if (set(botDict[str(ctx.guild.id)].roleList) & set(authorRoles)):
         await botDict[str(ctx.guild.id)].deleteTeam(ctx, teamName) 
+
+# Manually set the elo for a team and immediately update the leaderboard
+# ex: !setelo @Reliquary 1200
+# ex: !setelo "Apeman A" 2300
 @bot.command()
 async def setelo(ctx, teamName, elo):
     authorRoles = [role.id for role in ctx.message.author.roles]
     if (set(botDict[str(ctx.guild.id)].roleList) & set(authorRoles)):
         await botDict[str(ctx.guild.id)].setElo(ctx, teamName, elo)
 
+# Sets the channel that the leaderboard will be maintained in, must contain a channel mention.
+# ex: !setboardchannel #elo-log
 @bot.command()
 async def setboardchannel(ctx, channel):
     authorRoles = [role.id for role in ctx.message.author.roles]
@@ -408,12 +443,19 @@ async def setboardchannel(ctx, channel):
         except commands.BadArgument:
             await ctx.send(f":x: Invalid syntax. Try: !setboardchannel #channelname")
 
+# If there are any changes to the json file or board but are not printed yet in the board channel, refresh the board channel leaderboard.
+# ex: !refreshboard
 @bot.command()
 async def refreshboard(ctx):
     authorRoles = [role.id for role in ctx.message.author.roles]
     if (set(botDict[str(ctx.guild.id)].roleList) & set(authorRoles)):
         await botDict[str(ctx.guild.id)].updateBoard(ctx)
 
+# Adds a match between two teams with a max of 3 wins.
+# Updates the elo for the teams and updates the leaderboard.
+# ex: !addmatch @Sperg Squad 3-0 @Obsidian
+# ex: !addmatch "Apeman A" 3-0 "Reliquary"
+# ex: !addmatch "Apeman A" 3-0 @Reliquary
 @bot.command()
 async def addmatch(ctx, team1, score, team2):
     authorRoles = [role.id for role in ctx.message.author.roles]
@@ -428,6 +470,9 @@ async def addmatch(ctx, team1, score, team2):
             await ctx.send(':x: Incorrect syntax. Example: !addmatch @Reliquary 3-0 @Terry')
         await botDict[str(ctx.guild.id)].matchResult(ctx, team1, score, team2)
 
+# Displays the log for a team. Gives a brief history to the wins and losses
+# ex: !showhistory @Reliquary
+# ex: !showhistory "Last Kings B"
 @bot.command()
 async def showhistory(ctx, team):
     authorRoles = [role.id for role in ctx.message.author.roles]
@@ -439,6 +484,10 @@ async def showhistory(ctx, team):
             return
         await botDict[str(ctx.guild.id)].displayhistory(ctx, team)
 
+# Simulates the elo changes within a match. Same as !addmatch except doesn't write any of the new elo changes.
+# ex: !simulmatch @Sperg Squad 3-0 @Obsidian
+# ex: !simulmatch "Apeman A" 3-0 "Reliquary"
+# ex: !simulmatch "Apeman A" 3-0 @Reliquary
 @bot.command()
 async def simulmatch(ctx, team1, score, team2):
     authorRoles = [role.id for role in ctx.message.author.roles]
@@ -454,6 +503,7 @@ async def simulmatch(ctx, team1, score, team2):
             await ctx.send(':x: Incorrect syntax. Example: !simulmatch Reliquary 3-0 Terry')
         await botDict[str(ctx.guild.id)].simulResult(ctx, team1, score, team2)
 
+# Displays the help screen
 @bot.command()
 async def elobothelp(ctx):
     authorRoles = [role.id for role in ctx.message.author.roles]
