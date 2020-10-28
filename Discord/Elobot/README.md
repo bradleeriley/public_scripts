@@ -7,7 +7,7 @@ The bot has some assumptions of how your Discord server is setup already. You mu
 The bot works off creating json files for each guild, the files are minimal in size and just track the leaderboard/settings. This is so data is retained if the bot has to restart.
 
 
-![](example.gif)
+<img src="example.gif" width="512" height="288"/>
 
 
 ## Commands
