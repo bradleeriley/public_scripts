@@ -31,13 +31,13 @@
 #==============================================================================
 #% INFORMATION
 #%      VERSION              check_ubiquiti_switch.sh 1.0.0
-#%      AUTHOR               Brad Riley (bsr@ec-group.com)
+#%      AUTHOR               Brad Riley (brad@bradsvpn.com)
 #%      TESTED ENVIRONMENTS  UniFi Switch 48 POE-750W - 4.0.66.10832
 #%
 #==============================================================================
 # HISTORY
 #       2020-01-31 : BradR : Creation of script
-#		2020-02-07 : BradR : Added port description to -down port														 
+#		    2020-02-07 : BradR : Added port description to -down port														 
 #
 #
 #==============================================================================

@@ -1,10 +1,12 @@
 #!/bin/bash
 # Brad Riley
 # Sends emails when files are created under /home in the incoming folders of sftp users.
+# Requires msmtp to send emails.
 
 # Directory to monitor
 MONITORDIR="/home"
-
+ TO="email@domain.com"
+ FROM="localhost@domain.com"
 # Start inotify as monitor, recursive, and with events of create.
 # Read the output as the variable NEWFILE. (It outputs the file path/name.)
 # Example: NEWFILE=/home/test/sftp/INCOMING/test.txt
@@ -18,6 +20,6 @@ do
         echo $NEWFILE # Print the file created
         # Only send an email if the change  is created in an INCOMING folder and is a file
         if [[ $incoming == "INCOMING" && $user != "root" && $NEWFILE != *".filepart" ]] ; then
-          printf "To: email@domain.com\nFrom: localhost@domain.com\nSubject: $user has uploaded a file\n\nThe following file has been uploaded: ${NEWFILE}" | msmtp email@domain.com
+          printf "To: $TO\nFrom: $FROM\nSubject: $user has uploaded a file\n\nThe following file has been uploaded: ${NEWFILE}" | msmtp email@domain.com
         fi
 done

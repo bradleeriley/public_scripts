@@ -5,8 +5,9 @@
 # Removes expired accounts and their home directories the 1st of every month.
 
 DATE=`date "+%Y%m%d"`
-
+LOGDIR='/home/someuser/filename.log'
 IFS=':'
+
 while read -r user pass uid gid desc home shell; do
   if [ $gid == '1001' -a $uid -gt 999 ]
   then
@@ -27,7 +28,7 @@ while read -r user pass uid gid desc home shell; do
     if [ $today -ge $expire_date ]
     then
       /sbin/deluser --remove-home --quiet $user
-      echo "$DATE - Deleted user: $user" >> /home/ecg/rem_expired.log
+      echo "$DATE - Deleted user: $user" >> $LOGDIR
     fi
   fi
 done </etc/passwd
