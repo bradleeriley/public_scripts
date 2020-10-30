@@ -7,10 +7,12 @@ import discord
 import json
 import math
 
+
 from discord.ext import commands
 from discord.utils import get
 from dotenv import load_dotenv
 from discord.ext.commands import RoleConverter
+from datetime import date
 
 # Storing Discord Bot token locally
 load_dotenv()
@@ -43,7 +45,10 @@ class settings:
     def updateSettings(self): # Dump the settings into a json file with the guild ID as the file name.
         with open(str(self.guild) + '.json', 'w+') as newJsonFile:
             json.dump(self.__dict__, newJsonFile, indent=4)
-
+    def todayDate(self):
+        today = date.today()
+        today = today.strftime("%m-%d-%Y")
+        return today
     # Will use later
     #def setBlackChannels(self, channel):
         #self.blacklisted_channels.append(channel)
@@ -89,8 +94,11 @@ class settings:
                 else: # If its a new team create the key name of the team name and the value with the elo, update the json file. Let the user know it worked.
                     self.board[str(teamName.id)] = elo
                     await channel.send(":white_check_mark: Added team " + str(teamName) + " with '" + str(elo) + "' elo")
-                    create_entry = [{int(elo) : 'Start'}]
-                    self.log[str(teamName.id)] = create_entry
+                    #logEntry = [{int(elo) : [{'Start' : 'Start'}]}]
+                    today = date.today()
+                    today = today.strftime("%m-%d-%Y")
+                    logEntry = [{'elo' : int(elo), 'date' : today, 'opponent': 'Start', 'wins' : 0, 'loss' : 0}]
+                    self.log[str(teamName.id)] = logEntry
                     await self.updateBoard(ctx)
                     self.updateSettings()
             except ValueError:
@@ -138,7 +146,10 @@ class settings:
                     return
                 await self.updateBoard(ctx)
                 author = ctx.author.name
-                self.log[str(teamName.id)].append({int(elo) : str(author + ' Set elo')})
+                #self.log[str(teamName.id)].append({int(elo) : [str(author + ' Set elo')]})
+                today = self.todayDate()
+                logEntry = {'elo' : int(elo), 'date' : today, 'opponent': str(author + ' Set elo'), 'wins' : 0, 'loss' : 0}
+                self.log[str(teamName.id)].append(logEntry)
                 self.updateSettings()
                 await channel.send(":white_check_mark: " + str(teamName) + ": "  +  str(currentElo) + " -> " + str(elo))
                 return
@@ -179,6 +190,7 @@ class settings:
 
         for eachTeam in displayBoard:
             teamName = eachTeam[0].name
+            teamID = eachTeam[0].id
             teamElo = eachTeam[1]
             if eloList.count(eachTeam[1]) > 1:
                 if added == False:
@@ -189,8 +201,8 @@ class settings:
                 counter += 1
                 added = False
                 entry = "(" + str(counter) + ") " + str(teamName) + " - " + str(teamElo) 
-            if len(self.log[str(eachTeam[0].id)]) > 1:
-                    previousElo =   int(list(self.log[str(eachTeam[0].id)][-2].keys())[0])
+            if len(self.log[str(teamID)]) > 1:
+                    previousElo = self.log[str(teamID)][-1]['elo']
                     eloDiff = teamElo - previousElo
                     if eloDiff > 0:
                         entry = entry + " (↑" + str(eloDiff) + ")"
@@ -240,12 +252,16 @@ class settings:
         newTeam1Elo = round(calculateElo(team1Elo, team2Elo, int(team1wins), int(team2wins)))
         self.board[str(team1.id)] = newTeam1Elo
         #self.log[(str(team1.id))].append(newTeam1Elo)
-        self.log[str(team1.id)].append({int(newTeam1Elo) : str(team1.name + " " + score + " " + team2.name)})
+        today = self.todayDate()
+        logEntry1 = {'elo' : newTeam1Elo, 'date' : today, 'opponent': team2.id, 'wins' : team1wins, 'loss' : team2wins}
+        self.log[str(team1.id)].append(logEntry1)
+        
         newTeam2Elo = round(calculateElo(team2Elo, team1Elo, int(team2wins), int(team1wins)))
         self.board[str(team2.id)] = newTeam2Elo
         #self.log[(str(team2.id))].append(newTeam2Elo)
-        self.log[str(team2.id)].append({int(newTeam2Elo) : str(team1.name + " " + score + " " + team2.name)})
-        
+        #self.log[str(team2.id)].append({int(newTeam2Elo) : str(team1.name + " " + score + " " + team2.name)})
+        logEntry2 = {'elo' : newTeam2Elo, 'date' : today, 'opponent': team1.id, 'wins' : team2wins, 'loss' : team1wins}
+        self.log[str(team2.id)].append(logEntry2)
         # Put together the embedded message telling how much elo is lost or gained.
         embed=discord.Embed(title="Elo Summary")
         diffElo = team1Elo - newTeam1Elo
@@ -306,27 +322,82 @@ class settings:
 
     # Looks at the log for a team and displays the last 10 records with the win loss and elo change
     async def displayhistory(self, ctx, team):
+        def calcDiff(logList, eachLog):
+            eloDiff = logList[eachLog - 1]['elo'] - logList[eachLog]['elo']
+            if eloDiff < 0:
+                arrow = '↑'
+            else:
+                arrow = '↓'
+            if eloDiff == 0:
+                string = ''
+            elif abs(eloDiff) < 10:
+                string = '(' + arrow + str(abs(eloDiff)) + ')   '
+            elif abs(eloDiff) > 99:
+                string = '(' + arrow + str(abs(eloDiff)) + ') '
+            else:
+                string = '(' + arrow + str(abs(eloDiff)) + ')  '
+            return string
+        async def buildString(logList):
+            string = '```'
+            count = 0
+            for eachLog in reversed(range(len(logList))):
+                if count < 10:
+                    count += 1
+                    if isinstance(logList[eachLog]['opponent'], int):
+                        opponent = await commands.RoleConverter().convert(ctx, str(logList[eachLog]['opponent']))
+                        string += logList[eachLog]['date'] + " : " + str(logList[eachLog]['elo'])
+                        string += ' ' + calcDiff(logList, eachLog)
+                        string += ' ' + team.name + ' ' + str(logList[eachLog]['wins']) + ' - ' + str(logList[eachLog]['loss']) + ' ' + opponent.name
+                    elif logList[eachLog]['opponent'] == 'Start':
+                        string += logList[eachLog]['date'] + " : " + str(logList[eachLog]['elo'])
+                        #string += ' ' + calcDiff(logList, eachLog)
+                        string += ' Start'
+                    elif 'Set elo' in logList[eachLog]['opponent']:
+                        string += logList[eachLog]['date'] + " : " + str(logList[eachLog]['elo'])
+                        string += ' ' + calcDiff(logList, eachLog)
+                        string += logList[eachLog]['opponent']
+
+                    string += '\n'
+                else:
+                    break
+            string += '```'
+            return string
+        def buildEmbed(string):
+            title = "Elo History of " + team.name
+            embed=discord.Embed(title=title)
+            embed.add_field(name="Last 10 records", value=string, inline=True)
+            return embed
         try:
             logList = self.log[str(team.id)]
         except KeyError:
             await ctx.send(":x: Role not found in list of teams")
             return
-        logList.reverse()
-        counter = -1
-        history = ""
-        for eachlog in logList:
-            if counter > -10:
-                elo = list(eachlog.keys())[0]
-                result = str(eachlog[elo])
-                history += str(abs(counter)) + '. ' + str(elo) + " : " + result + '\n'
-                counter -= 1
-            else:
-                break
-        title = "Elo History of " + team.name
-        embed=discord.Embed(title=title)
-        embed.add_field(name="Last 10 records", value=history, inline=True)
+        string = await buildString(logList)
+        embed = buildEmbed(string)
         await ctx.send(embed=embed)
 
+    async def displaystats(self, ctx, team):
+        async def winLoss(logList, ctx):
+            def most_common(lst):
+                return max(set(lst), key=lst.count)
+            winCount = 0
+            lossCount = 0
+            winLossRatio = 0
+            mostPlayed = ''
+            lossOpponent = ''
+            winOpponent = ''
+            opponents = [x['opponent'] for x in logList if isinstance(x['opponent'], int)]
+            print(opponents)
+            mostPlayed = most_common(str(opponents))
+            mostPlayed = await commands.RoleConverter().convert(ctx, mostPlayed)
+            print(opponents)
+            print(mostPlayed.name)
+        try:
+            logList = self.log[str(team.id)]
+        except KeyError:
+            await ctx.send(":x: Role not found in list of teams")
+            return
+        await winLoss(logList, ctx)
 # When the bot starts it will load the teams json files, so no data is lost.
 @bot.event
 async def on_ready():
@@ -484,6 +555,16 @@ async def showhistory(ctx, team):
             return
         await botDict[str(ctx.guild.id)].displayhistory(ctx, team)
 
+@bot.command()
+async def showstats(ctx, team):
+    authorRoles = [role.id for role in ctx.message.author.roles]
+    if (set(botDict[str(ctx.guild.id)].roleList) & set(authorRoles)):
+        try:
+            team = await commands.RoleConverter().convert(ctx, team)
+        except discord.ext.commands.errors.RoleNotFound:
+            await ctx.send(':x: Role entered is not valid')
+            return
+        await botDict[str(ctx.guild.id)].displaystats(ctx, team)
 # Simulates the elo changes within a match. Same as !addmatch except doesn't write any of the new elo changes.
 # ex: !simulmatch @Sperg Squad 3-0 @Obsidian
 # ex: !simulmatch "Apeman A" 3-0 "Reliquary"
