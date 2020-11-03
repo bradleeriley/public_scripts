@@ -6,7 +6,7 @@ import random
 import discord
 import json
 import math
-
+import copy
 
 from discord.ext import commands
 from discord.utils import get
@@ -377,27 +377,168 @@ class settings:
         await ctx.send(embed=embed)
 
     async def displaystats(self, ctx, team):
-        async def winLoss(logList, ctx):
+        async def id_converter(logList, ctx):
+            newMatchList = []
+            for eachMatch in logList:
+                if isinstance(eachMatch['opponent'], int):
+                    eachMatch['opponent'] = "<@&" + str(eachMatch['opponent']) + ">"
+                    eachMatch['opponent'] = await commands.RoleConverter().convert(ctx, eachMatch['opponent'])
+                    newMatchList.append(eachMatch)
+            return newMatchList
+        
+        async def get_mostPlayed(matches, ctx):
             def most_common(lst):
                 return max(set(lst), key=lst.count)
-            winCount = 0
-            lossCount = 0
-            winLossRatio = 0
-            mostPlayed = ''
-            lossOpponent = ''
-            winOpponent = ''
-            opponents = [x['opponent'] for x in logList if isinstance(x['opponent'], int)]
-            print(opponents)
-            mostPlayed = most_common(str(opponents))
-            mostPlayed = await commands.RoleConverter().convert(ctx, mostPlayed)
-            print(opponents)
-            print(mostPlayed.name)
+            opponents = [x['opponent']for x in matches]
+            mostPlayed = most_common(opponents)
+            mostPlayedCount = opponents.count(mostPlayed)
+            #mostPlayed = await commands.RoleConverter().convert(ctx, mostPlayed)
+            return [mostPlayed.name, mostPlayedCount]
+        
+        def get_winLoss(matches):
+            roundWins = sum([x['wins'] for x in matches])
+            if not roundWins:
+                roundWins = 0
+            roundLoss = sum([x['loss'] for x in matches])
+            if not roundLoss:
+                roundLoss = 0
+            matchWin = len([x['wins'] for x in matches if x['wins'] > x['loss']])
+            if not matchWin:
+                matchWin = 0
+            matchLoss = len([x['loss'] for x in matches if x['loss'] > x['wins']])
+            if not matchLoss:
+                matchLoss = 0
+            return [roundWins, roundLoss, matchWin, matchLoss]
+        
+        def get_mostRoundStat(matches, stat):
+            opponents = {}
+            if len(matches) > 1:
+                for eachMatch in matches:
+                    if eachMatch['opponent'] not in opponents.keys():
+                        opponents[eachMatch['opponent']] = eachMatch[stat]
+                    else:
+                        opponents[eachMatch['opponent']] += eachMatch[stat]
+                keys = list(opponents.keys())
+                if len(keys) == 1:
+                    team = keys[0]
+                    mostRoundTeam = team.name
+                    mostRoundCount = opponents[team]
+                else:
+                    mostRoundWins = max(opponents.items(), key=lambda k: k[1])
+                    mostRoundTeam = str(mostRoundWins[0])
+                    mostRoundCount = str(mostRoundWins[1])
+                return [mostRoundTeam, mostRoundCount]
+            else:
+                team = matches[0]
+                if team[stat] > 0:
+                    return [team['opponent'].name, team[stat]]
+                else:
+                    return "0"
+                
+
+        def get_mostMatchStat(matches, stat):
+            opponents = {}
+            if stat == 'loss':
+                opposite = 'wins'
+            else:
+                opposite = 'loss'
+            if len(matches) < 2:
+                team = matches[0]
+                if team[stat] > team[opposite]:
+                    mostMatchWins = [team['opponent'].name, 1]
+                else:
+                    mostMatchWins = [0]
+                    return mostMatchWins
+            else:
+                for eachMatch in matches:
+                    if eachMatch['opponent'].name not in opponents.keys():
+                        if eachMatch[stat] > eachMatch[opposite]:
+                            opponents[eachMatch['opponent'].name] = 1
+                    else:
+                        if eachMatch[stat] > eachMatch[opposite]:
+                            opponents[eachMatch['opponent'].name] += 1     
+                if opponents:
+                    mostMatchWins = max(opponents.items(), key=lambda k: k[1])
+                else:
+                    mostMatchWins = [0]
+                    return mostMatchWins          
+            mostMatchTeam = str(mostMatchWins[0])
+            mostMatchCount = str(mostMatchWins[1])
+            return [mostMatchTeam, mostMatchCount]
+
+        async def buildEmbed(ctx, stats, team):
+            title = "Stats for " + team.name
+            mostPlayed = str(stats['mostPlayed'][0]) + ' - ' + str(stats['mostPlayed'][1])
+            if len(stats['winOpponent']) > 1:
+                mostWins = str(stats['winOpponent'][0]) + ' - ' + str(stats['winOpponent'][1])
+            else:
+                mostWins = "0"
+
+            if len(stats['lossOpponent']) > 1:
+                mostLoss = str(stats['lossOpponent'][0]) + ' - ' + str(stats['lossOpponent'][1])
+            else:
+                mostLoss = "0"
+
+            if len(stats['matchWinOpponent']) > 1:
+                mostWinsOpponent = str(stats['matchWinOpponent'][0]) + ' - ' + str(stats['matchWinOpponent'][1])
+            else:
+                mostWinsOpponent = "0"
+
+            if len(stats['matchLossOpponent']) > 1:
+                mostLossOpponent = str(stats['matchLossOpponent'][0]) + ' - ' + str(stats['matchLossOpponent'][1])
+            else:
+                mostLossOpponent = "0"
+
+            embed=discord.Embed(title=title, color=0x1eea1a)
+            embed.add_field(name="Match Wins:", value=stats['matchWinCount'], inline=True)
+            embed.add_field(name="Match Losses:", value=stats['matchLossCount'], inline=True)
+            embed.add_field(name="Match Win/Loss Ratio:", value=round(stats['matchWinLossRatio'], 2), inline=True)
+            embed.add_field(name="Round Wins:", value=stats['roundWinCount'], inline=True)
+            embed.add_field(name="Round Losses:", value=stats['roundLossCount'], inline=True)
+            embed.add_field(name="Round Win/Loss Ratio:", value=round(stats['roundWinLossRatio'], 2), inline=True)
+            embed.add_field(name="Most Matches:", value=mostPlayed, inline=True)
+            embed.add_field(name="Most Match Wins:", value=mostWinsOpponent, inline=True)
+            embed.add_field(name="Most Match Losses:", value=mostLossOpponent, inline=True)
+            embed.add_field(name="Most Round Wins:", value=mostWins, inline=True)
+            embed.add_field(name="Most Round Losses:", value=mostLoss, inline=True)
+            return embed
         try:
-            logList = self.log[str(team.id)]
+            logList = copy.deepcopy(self.log[str(team.id)])
         except KeyError:
             await ctx.send(":x: Role not found in list of teams")
             return
-        await winLoss(logList, ctx)
+
+        stats = {}
+        matches = await id_converter(logList, ctx)
+        if not matches:
+            await ctx.send(":x: That team doesn't have any stats to display.")
+            return
+        stats['mostPlayed'] = await get_mostPlayed(matches, ctx)
+        totalWinLoss = get_winLoss(matches)
+        stats['roundWinCount'] = totalWinLoss[0]
+        stats['roundLossCount'] = totalWinLoss[1]
+        stats['matchWinCount'] = totalWinLoss[2]
+        stats['matchLossCount'] = totalWinLoss[3]
+        if stats['roundWinCount'] == 0 or stats['roundLossCount'] == 0:
+            stats['roundWinLossRatio'] = stats['roundWinCount']
+        else:
+            stats['roundWinLossRatio'] = stats['roundWinCount'] / stats['roundLossCount']
+        if stats['matchWinCount'] == 0 or stats['matchLossCount'] == 0:
+            stats['matchWinLossRatio'] = stats['matchWinCount']
+        else:
+            stats['matchWinLossRatio'] = stats['matchWinCount'] / stats['matchLossCount']
+        stats['lossOpponent'] = get_mostRoundStat(matches, 'loss')
+        stats['winOpponent'] = get_mostRoundStat(matches, 'wins')
+        stats['matchWinOpponent'] = get_mostMatchStat(matches, 'wins')
+        stats['matchLossOpponent'] = get_mostMatchStat(matches, 'loss')
+        embed = await buildEmbed(ctx, stats, team)
+        await ctx.send(embed=embed)
+
+        
+
+            
+
+        #await winLoss(logList, ctx)
 # When the bot starts it will load the teams json files, so no data is lost.
 @bot.event
 async def on_ready():
