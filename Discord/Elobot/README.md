@@ -68,7 +68,7 @@ If you need additional help creating a bot through Discord's developer portal, f
 <img src="showstats.PNG" width="509" height="384"/>
 
 #### !showhistory
-<img src="showhistory.PNG" width="668" height="310"/>
+<img src="showhistory.PNG" width="512" height="374"/>
 
 #### !addmatch & !board
 <img src="board.PNG" width="366" height="476"/>
