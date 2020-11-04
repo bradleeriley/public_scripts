@@ -37,6 +37,7 @@ class settings:
             self.boardID = 0
             self.boardChannel = 0
             self.log = {}
+            self.adminLog = []
     def __str__(self):
         return str(self.__dict__)
     def __repr__(self):
@@ -53,25 +54,52 @@ class settings:
     #def setBlackChannels(self, channel):
         #self.blacklisted_channels.append(channel)
 
+    def addLog(self, ctx):
+        if len(self.adminLog) >= 30:
+            print('Gonna delete some logs!')
+            self.adminLog = self.adminLog[-10:]
+            self.updateSettings()
+        today = self.todayDate()
+        log = [str(today), str(ctx.message.clean_content), str(ctx.message.author)]
+        self.adminLog.append(log)
+
+    async def showLog(self, ctx):
+        string = '```'
+        count = 0
+        newLog = copy.deepcopy(self.adminLog)
+        newLog.reverse()
+        for eachLog in newLog:
+            eachLog = ' - '.join(eachLog)
+            string += eachLog + '\n'
+            count += 1
+            if count >= 10:
+                break
+        string += '```'
+        await ctx.send(string)
+
     # Add an allowed role to use the bot (except for the !simulmatch command)
-    async def addRole(self, role, message):
-        channel = message.channel
+    async def addRole(self, role, ctx):
+        channel = ctx.message.channel
         if role.id not in self.roleList:
             self.roleList.append(role.id)
+            self.addLog(ctx)
             self.updateSettings() 
             await channel.send(":white_check_mark: Added role: " + str(role.name))
+
         else:
             await channel.send(':x: Role already exists: ' + str(role.name))
             return
     
     # Removes a role from the allowed roles
-    async def removerole(self, role, message):
-        channel = message.channel
+    async def removerole(self, role, ctx):
+        channel = ctx.message.channel
         if self.roleList:
             try:
                 self.roleList.remove(role.id)
+                self.addLog(ctx)
                 self.updateSettings() 
                 await channel.send(":white_check_mark: Removed role: " + role.name)
+                
             except ValueError:
                 await channel.send(':x: Role not found in list of allowed roles: ' + str(role.name))
         else:
@@ -100,7 +128,10 @@ class settings:
                     logEntry = [{'elo' : int(elo), 'date' : today, 'opponent': 'Start', 'wins' : 0, 'loss' : 0}]
                     self.log[str(teamName.id)] = logEntry
                     await self.updateBoard(ctx)
+                    self.addLog(ctx)
                     self.updateSettings()
+                    
+                    return
             except ValueError:
                 await channel.send(':x: Invalid syntax')
                 return 
@@ -122,7 +153,9 @@ class settings:
                     del self.log[str(teamName.id)]
                     await channel.send(':white_check_mark: Removed team: ' + str(teamName))
                     await self.updateBoard(ctx)
+                    self.addLog(ctx)
                     self.updateSettings()
+                    
                     return                   
                 else:
                     await channel.send(":x: Team doesn't exist: " + str(teamName))
@@ -150,7 +183,7 @@ class settings:
                 today = self.todayDate()
                 logEntry = {'elo' : int(elo), 'date' : today, 'opponent': str(author + ' Set elo'), 'wins' : 0, 'loss' : 0}
                 self.log[str(teamName.id)].append(logEntry)
-                self.updateSettings()
+                
                 await channel.send(":white_check_mark: " + str(teamName) + ": "  +  str(currentElo) + " -> " + str(elo))
                 return
             else:
@@ -160,14 +193,17 @@ class settings:
         try:
             teamName = await commands.RoleConverter().convert(ctx, teamName)
             await update(self, teamName, channel)
+            self.addLog(ctx)
+            self.updateSettings()
         except discord.ext.commands.errors.RoleNotFound:
                 await channel.send(':x: Team not found: ' + str(teamName))
                 return
 
     # Set the channel the leaderboard will be in. Passed channel object as boardChannel   
-    async def setBoardChannel(self, boardChannel, message):
-        channel = message.channel
+    async def setBoardChannel(self, boardChannel, ctx):
+        channel = ctx.message.channel
         self.boardChannel = boardChannel.id
+        self.addLog(ctx)
         self.updateSettings()
         await channel.send(":white_check_mark: Set board channel to: " + str(boardChannel.name))
         
@@ -217,16 +253,19 @@ class settings:
                 msg = await channel.fetch_message(self.boardID)
                 await msg.edit(content=standings)
                 self.updateSettings()
+                
             except discord.NotFound:
                 channel = await commands.TextChannelConverter().convert(ctx, str(self.boardChannel))
                 message = await channel.send(standings)
-                self.boardID = message.id
-                self.updateSettings()         
+                self.boardID = message.id  
+                self.updateSettings()
+                  
         else:
             channel = await commands.TextChannelConverter().convert(ctx, str(self.boardChannel))
             message = await channel.send(standings)
             self.boardID = message.id
             self.updateSettings()
+            
 
     # Add a match between two teams with a max of 3 wins
     # ex: !addmatch @Reliquary 3-0 @Syndicate
@@ -236,8 +275,16 @@ class settings:
             newElo = currentElo + 150 * ((wins / (wins + loss)) - (1 / (1 + 10 ** ((opponentElo - currentElo) / 400)))) + 25 * ((wins - loss) / (abs(wins - loss)))
             return newElo
         # Format the command message into variables
-        team1Elo = self.board[str(team1.id)]
-        team2Elo = self.board[str(team2.id)]
+        try:
+            team1Elo = self.board[str(team1.id)]
+        except KeyError:
+            await ctx.send(":x: Unable to locate team " + team1.name + " within leaderboard")
+            return
+        try:
+            team2Elo = self.board[str(team2.id)]
+        except KeyError:
+            await ctx.send(":x: Unable to locate team " + team2.name + " within leaderboard")
+            return            
         result = score.split('-')
         try:
             team1wins = int(result[0])
@@ -280,6 +327,8 @@ class settings:
         embed.add_field(name=team2.name, value=value, inline=True)
         await ctx.send(embed=embed)
         await self.updateBoard(ctx)
+        self.addLog(ctx)
+        self.updateSettings()
 
     # Same thing as addmatch except it doesn't update the leaderboard or log
     # Used to test elo calculation or see probable outcomes.
@@ -319,6 +368,7 @@ class settings:
         embed.add_field(name=team2.name, value=value, inline=True)
         await ctx.send(embed=embed)
         await self.updateBoard(ctx)
+        
 
     # Looks at the log for a team and displays the last 10 records with the win loss and elo change
     async def displayhistory(self, ctx, team):
@@ -434,7 +484,10 @@ class settings:
                     return [team['opponent'].name, team[stat]]
                 else:
                     return "0"
-                
+
+        def get_currentElo(logList):
+            currentElo = logList[-1]['elo']        
+            return currentElo
 
         def get_mostMatchStat(matches, stat):
             opponents = {}
@@ -468,28 +521,29 @@ class settings:
 
         async def buildEmbed(ctx, stats, team):
             title = "Stats for " + team.name
-            mostPlayed = str(stats['mostPlayed'][0]) + ' - ' + str(stats['mostPlayed'][1])
+            description = "Current Elo: " + str(stats['currentElo'])
+            mostPlayed = str(stats['mostPlayed'][0]) + ' : ' + str(stats['mostPlayed'][1])
             if len(stats['winOpponent']) > 1:
-                mostWins = str(stats['winOpponent'][0]) + ' - ' + str(stats['winOpponent'][1])
+                mostWins = str(stats['winOpponent'][0]) + ' : ' + str(stats['winOpponent'][1])
             else:
                 mostWins = "0"
 
             if len(stats['lossOpponent']) > 1:
-                mostLoss = str(stats['lossOpponent'][0]) + ' - ' + str(stats['lossOpponent'][1])
+                mostLoss = str(stats['lossOpponent'][0]) + ' : ' + str(stats['lossOpponent'][1])
             else:
                 mostLoss = "0"
 
             if len(stats['matchWinOpponent']) > 1:
-                mostWinsOpponent = str(stats['matchWinOpponent'][0]) + ' - ' + str(stats['matchWinOpponent'][1])
+                mostWinsOpponent = str(stats['matchWinOpponent'][0]) + ' : ' + str(stats['matchWinOpponent'][1])
             else:
                 mostWinsOpponent = "0"
 
             if len(stats['matchLossOpponent']) > 1:
-                mostLossOpponent = str(stats['matchLossOpponent'][0]) + ' - ' + str(stats['matchLossOpponent'][1])
+                mostLossOpponent = str(stats['matchLossOpponent'][0]) + ' : ' + str(stats['matchLossOpponent'][1])
             else:
                 mostLossOpponent = "0"
 
-            embed=discord.Embed(title=title, color=0x1eea1a)
+            embed=discord.Embed(title=title, description=description, color=0x1eea1a)
             embed.add_field(name="Match Wins:", value=stats['matchWinCount'], inline=True)
             embed.add_field(name="Match Losses:", value=stats['matchLossCount'], inline=True)
             embed.add_field(name="Match Win/Loss Ratio:", value=round(stats['matchWinLossRatio'], 2), inline=True)
@@ -513,6 +567,7 @@ class settings:
         if not matches:
             await ctx.send(":x: That team doesn't have any stats to display.")
             return
+        stats['currentElo'] = get_currentElo(logList)
         stats['mostPlayed'] = await get_mostPlayed(matches, ctx)
         totalWinLoss = get_winLoss(matches)
         stats['roundWinCount'] = totalWinLoss[0]
@@ -533,8 +588,6 @@ class settings:
         stats['matchLossOpponent'] = get_mostMatchStat(matches, 'loss')
         embed = await buildEmbed(ctx, stats, team)
         await ctx.send(embed=embed)
-
-        
 
             
 
@@ -580,7 +633,7 @@ async def addrole(ctx, role):
     except commands.BadArgument:
         await ctx.send(f":x: Invalid syntax, try !role @rolename")
         return
-    await botDict[str(ctx.guild.id)].addRole(role, ctx.message)
+    await botDict[str(ctx.guild.id)].addRole(role, ctx)
 
 # Only users with administrative priveledges in Discord can remove an allowed role
 @bot.command()
@@ -591,7 +644,7 @@ async def removerole(ctx, role):
     except commands.BadArgument:
         await ctx.send(f":x: Invalid syntax, try !role @rolename")
         return
-    await botDict[str(ctx.guild.id)].removerole(role, ctx.message)
+    await botDict[str(ctx.guild.id)].removerole(role, ctx)
 
 # Print a nice embed message listing the allowed roles.
 # Administrator and allowed roles can run this command.
@@ -651,7 +704,7 @@ async def setboardchannel(ctx, channel):
     if (set(botDict[str(ctx.guild.id)].roleList) & set(authorRoles)):
         try:
             channel = await commands.TextChannelConverter().convert(ctx, channel)
-            await botDict[str(ctx.guild.id)].setBoardChannel(channel, ctx.message)
+            await botDict[str(ctx.guild.id)].setBoardChannel(channel, ctx)
         except commands.BadArgument:
             await ctx.send(f":x: Invalid syntax. Try: !setboardchannel #channelname")
 
@@ -706,6 +759,17 @@ async def showstats(ctx, team):
             await ctx.send(':x: Role entered is not valid')
             return
         await botDict[str(ctx.guild.id)].displaystats(ctx, team)
+
+@bot.command()
+async def showlog(ctx):
+    authorRoles = [role.id for role in ctx.message.author.roles]
+    if (set(botDict[str(ctx.guild.id)].roleList) & set(authorRoles)):
+        if botDict[str(ctx.guild.id)].adminLog:
+            await botDict[str(ctx.guild.id)].showLog(ctx)
+            return
+        else:
+            await ctx.send(':x: Admin log is empty')
+            return
 # Simulates the elo changes within a match. Same as !addmatch except doesn't write any of the new elo changes.
 # ex: !simulmatch @Sperg Squad 3-0 @Obsidian
 # ex: !simulmatch "Apeman A" 3-0 "Reliquary"
@@ -724,6 +788,8 @@ async def simulmatch(ctx, team1, score, team2):
         if '-' not in score:
             await ctx.send(':x: Incorrect syntax. Example: !simulmatch Reliquary 3-0 Terry')
         await botDict[str(ctx.guild.id)].simulResult(ctx, team1, score, team2)
+
+
 
 # Displays the help screen
 @bot.command()
