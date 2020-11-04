@@ -44,9 +44,11 @@ The bot works off creating json files for each guild, the files are minimal in s
 
 ## Setup
 
+### Easy mode:
+
 Invite the bot to your server: [__Discord Bot Invite Link__](https://discord.com/api/oauth2/authorize?client_id=762718542562066494&permissions=68608&scope=bot)
 
-Manual setup:
+### Manual setup
 
 Made with Python 3.9.0, but should also work with 3.7 or in between those two versions.
 1. Install the required libraries for the bot. 
