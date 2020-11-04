@@ -6,10 +6,6 @@ The bot has some assumptions of how your Discord server is setup already. You mu
 
 The bot works off creating json files for each guild, the files are minimal in size and just track the leaderboard/settings. This is so data is retained if the bot has to restart.
 
-
-<img src="pics/example.gif" width="768" height="432"/>
-
-
 ## Commands
 
 `!elobothelp` - Displays the help page for the bot and this command list.
