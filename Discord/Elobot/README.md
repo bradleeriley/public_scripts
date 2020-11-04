@@ -50,15 +50,14 @@ Made with Python 3.9.0, but should also work with 3.7 or in between those two ve
 
     `pip install discord.py` - The Discord framework for Python.
 
-2. Create a Discord app bot permissions of "View channels", "Send Messages", and "Read Message History" (6808).
-3. Copy the token from the bot you've just created and create a file in the same directory as the script named ".env"
+2. Create a Discord app bot with permissions of "View channels", "Send Messages", and "Read Message History" (6808).
+3. Copy the token from the bot you've just created and create a file in the same directory as `elobot.py` named ".env".
 4. Inside the .env file, enter the following, but replace the DISCORD_TOKEN value with the Discord token from your bot:
 ```
 # .env
 DISCORD_TOKEN=NzcxNXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 ```
 5. Run the bot. `python elobot.py` - The bot will run on both Windows and Linux. Make sure both `elobot.py` an `guildconfig.py` are in the same folder together. I have the bot running as a systemd service, but you could also setup a scheduled task on Windows, or use NSSM.
-`python elobot.py`
 
 If you need additional help creating a bot through Discord's developer portal, follow this tutorial: https://discordpy.readthedocs.io/en/latest/discord.html
 
