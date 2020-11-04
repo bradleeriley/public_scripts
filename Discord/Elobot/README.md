@@ -24,6 +24,8 @@ The bot works off creating json files for each guild, the files are minimal in s
 
 `!showhistory roleMention` - Displays the last 10 records of a team and their score if they played against another team.
 
+`!showstats roleMention` - Displays some stats like matches won, lost, rounds win/loss, along with their ratios. Also find the most played opponents, most won/lost against opponents.
+
 `!removeteam roleMention` - Deletes a team from the leaderboard and log.
 
 `!setboardchannel channelMention` - Sets the channel to use for the leaderboard. Must be a channel mention.
@@ -35,6 +37,10 @@ The bot works off creating json files for each guild, the files are minimal in s
 `!simulmatch roleMention Score-Score roleMention` - Same thing as !addmatch except it won't update the leaderboard or log. Just to see the elo change on possible outcomes.
 
 `!showlog` - Shows the last 10 adminitrative actions, who took them, and what day.
+
+`!hideboard true/false` - This allows the administrator to hide the auto-updating leaderboard if they don't want it.
+
+`!board` - Sends a copy of the leaderboard to the channel called from. This is useful if you are hiding the leaderboard with the above command.
 
 ## Setup
 Made with Python 3.9.0, but should also work with 3.7 or in between those two versions.
