@@ -61,3 +61,13 @@ DISCORD_TOKEN=NzcxNXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 `python elobot.py`
 
 If you need additional help creating a bot through Discord's developer portal, follow this tutorial: https://discordpy.readthedocs.io/en/latest/discord.html
+
+
+### !showstats
+<img src="showstats.png" width="509" height="384"/>
+
+### !showhistory
+<img src="showhistory.png" width="668" height="310"/>
+
+### !addmatch & !board
+<img src="board.png" width="376" height="260"/>
