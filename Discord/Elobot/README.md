@@ -52,4 +52,5 @@ Made with Python 3.9.0, but should also work with 3.7 or in between those two ve
 DISCORD_TOKEN=NzcxNXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 ```
 5. Run the bot. The bot will run on both Windows and Linux. I have the bot running as a systemd service, but you could also setup a scheduled task on Windows, or use NSSM.
+
 If you need additional help creating a bot through Discord's developer portal, follow this tutorial: https://discordpy.readthedocs.io/en/latest/discord.html
