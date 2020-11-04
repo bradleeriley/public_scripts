@@ -64,10 +64,10 @@ If you need additional help creating a bot through Discord's developer portal, f
 
 
 ### !showstats
-<img src="showstats.png" width="509" height="384"/>
+<img src="showstats.PNG" width="509" height="384"/>
 
 ### !showhistory
-<img src="showhistory.png" width="668" height="310"/>
+<img src="showhistory.PNG" width="668" height="310"/>
 
 ### !addmatch & !board
-<img src="board.png" width="376" height="260"/>
+<img src="board.PNG" width="376" height="260"/>
