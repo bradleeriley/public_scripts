@@ -34,6 +34,7 @@ class settings:
             self.blacklisted_channels = []
             self.roleList = []
             self.board = {}
+            self.hideBoard = True
             self.boardID = 0
             self.boardChannel = 0
             self.log = {}
@@ -50,13 +51,43 @@ class settings:
         today = date.today()
         today = today.strftime("%m-%d-%Y")
         return today
+        
     # Will use later
     #def setBlackChannels(self, channel):
         #self.blacklisted_channels.append(channel)
 
+    async def toggle_hideBoard(self, ctx, setting):
+        if self.boardChannel:
+            boardChannelMention = "<#" + str(self.boardChannel) + ">"
+            await commands.TextChannelConverter().convert(ctx, boardChannelMention)
+        if setting.lower() == 'true' and self.hideBoard == True:
+            await ctx.send(":x: Board is already hidden")
+        elif setting.lower() == 'false' and self.hideBoard == False:
+            await ctx.send(":x: Board is already shown in" + boardChannelMention)
+        elif setting.lower() == 'false' and self.hideBoard == True:
+            if self.boardChannel:
+                await ctx.send(":white_check_mark: Board is now shown in " + boardChannelMention)
+                self.hideBoard = False
+                await self.updateBoard(ctx)
+            else:
+                self.hideBoard = False
+                await ctx.send(":white_check_mark: Board is now shown. Please set a board channel with !setboardchannel <channelmention>")
+        elif setting.lower() == 'true' and self.hideBoard == False:
+            if self.boardChannel and self.boardID:
+                self.hideBoard = True
+                channel = await commands.TextChannelConverter().convert(ctx, str(self.boardChannel))
+                msg = await channel.fetch_message(self.boardID)
+                await msg.delete()
+                self.boardID = 0
+                await ctx.send(":white_check_mark: Board is now hidden and removed message from " + boardChannelMention)
+            else:
+                self.hideBoard = True
+                await ctx.send(":white_check_mark: Board is now hidden")
+        self.updateSettings()
+
+
     def addLog(self, ctx):
         if len(self.adminLog) >= 30:
-            print('Gonna delete some logs!')
             self.adminLog = self.adminLog[-10:]
             self.updateSettings()
         today = self.todayDate()
@@ -113,30 +144,26 @@ class settings:
         except discord.ext.commands.errors.RoleNotFound:
             await ctx.send(":x: Role does not exist")
             return 
-        if self.boardChannel: # Check to see if a leaderboard exists
-            try:
-                elo = int(elo) # Try to see if the elo is actually a number
-                if (str(teamName.id) in (k for k in self.board.keys())): # Check to see if the team already exists.
-                    await channel.send(':x: Team already exists: ' + str(teamName))
-                    return                   
-                else: # If its a new team create the key name of the team name and the value with the elo, update the json file. Let the user know it worked.
-                    self.board[str(teamName.id)] = elo
-                    await channel.send(":white_check_mark: Added team " + str(teamName) + " with '" + str(elo) + "' elo")
-                    #logEntry = [{int(elo) : [{'Start' : 'Start'}]}]
-                    today = date.today()
-                    today = today.strftime("%m-%d-%Y")
-                    logEntry = [{'elo' : int(elo), 'date' : today, 'opponent': 'Start', 'wins' : 0, 'loss' : 0}]
-                    self.log[str(teamName.id)] = logEntry
-                    await self.updateBoard(ctx)
-                    self.addLog(ctx)
-                    self.updateSettings()
-                    
-                    return
-            except ValueError:
-                await channel.send(':x: Invalid syntax')
-                return 
-        else:
-            await channel.send(":x: Please set a board channel first with the command !setboardchannel #channelname")
+        try:
+            elo = int(elo) # Try to see if the elo is actually a number
+            if (str(teamName.id) in (k for k in self.board.keys())): # Check to see if the team already exists.
+                await channel.send(':x: Team already exists: ' + str(teamName))
+                return                   
+            else: # If its a new team create the key name of the team name and the value with the elo, update the json file. Let the user know it worked.
+                self.board[str(teamName.id)] = elo
+                await channel.send(":white_check_mark: Added team " + str(teamName) + " with '" + str(elo) + "' elo")
+                #logEntry = [{int(elo) : [{'Start' : 'Start'}]}]
+                today = date.today()
+                today = today.strftime("%m-%d-%Y")
+                logEntry = [{'elo' : int(elo), 'date' : today, 'opponent': 'Start', 'wins' : 0, 'loss' : 0}]
+                self.log[str(teamName.id)] = logEntry
+                await self.updateBoard(ctx)
+                self.addLog(ctx)
+                self.updateSettings()
+                return
+        except ValueError:
+            await channel.send(':x: Invalid syntax')
+            return 
 
     # Removes a team from the leaderboard and updates the json for the guild.
     async def deleteTeam(self, ctx, teamName):
@@ -146,26 +173,22 @@ class settings:
         except discord.ext.commands.errors.RoleNotFound:
             await ctx.send(":x: Role does not exist")
             return 
-        if self.boardChannel:
-            try:
-                if str(teamName.id) in self.board.keys():
-                    del self.board[str(teamName.id)] 
-                    del self.log[str(teamName.id)]
-                    await channel.send(':white_check_mark: Removed team: ' + str(teamName))
-                    await self.updateBoard(ctx)
-                    self.addLog(ctx)
-                    self.updateSettings()
-                    
-                    return                   
-                else:
-                    await channel.send(":x: Team doesn't exist: " + str(teamName))
-                    return
-            except ValueError:
-                await channel.send(':x: Invalid syntax')
+        try:
+            if str(teamName.id) in self.board.keys():
+                del self.board[str(teamName.id)] 
+                del self.log[str(teamName.id)]
+                await channel.send(':white_check_mark: Removed team: ' + str(teamName))
+                await self.updateBoard(ctx)
+                self.addLog(ctx)
+                self.updateSettings()
+                
+                return                   
+            else:
+                await channel.send(":x: Team doesn't exist: " + str(teamName))
                 return
-            
-        else:
-            await channel.send(":x: Please set a board channel first with the command !setboardchannel #channelname")
+        except ValueError:
+            await channel.send(':x: Invalid syntax')
+            return
     
     # Manually change the elo of a team, then update the json.
     async def setElo(self, ctx, teamName, elo):
@@ -201,8 +224,14 @@ class settings:
 
     # Set the channel the leaderboard will be in. Passed channel object as boardChannel   
     async def setBoardChannel(self, boardChannel, ctx):
+        if self.boardChannel and self.boardID:
+            channel = await commands.TextChannelConverter().convert(ctx, str(self.boardChannel))
+            msg = await channel.fetch_message(self.boardID)
+            await msg.delete()
+            self.boardID = 0
         channel = ctx.message.channel
         self.boardChannel = boardChannel.id
+        await self.updateBoard(ctx)
         self.addLog(ctx)
         self.updateSettings()
         await channel.send(":white_check_mark: Set board channel to: " + str(boardChannel.name))
@@ -247,24 +276,30 @@ class settings:
             standings.append(entry)
 
         standings = "```\n" + "\n".join(standings) + "\n```"
-        if self.boardID:
-            try:
-                channel = await commands.TextChannelConverter().convert(ctx, str(self.boardChannel))
-                msg = await channel.fetch_message(self.boardID)
-                await msg.edit(content=standings)
-                self.updateSettings()
-                
-            except discord.NotFound:
-                channel = await commands.TextChannelConverter().convert(ctx, str(self.boardChannel))
-                message = await channel.send(standings)
-                self.boardID = message.id  
-                self.updateSettings()
-                  
-        else:
-            channel = await commands.TextChannelConverter().convert(ctx, str(self.boardChannel))
-            message = await channel.send(standings)
-            self.boardID = message.id
-            self.updateSettings()
+        if self.hideBoard == False:
+            if self.boardChannel:
+                if self.boardID:
+                    try:
+                        channel = await commands.TextChannelConverter().convert(ctx, str(self.boardChannel))
+                        msg = await channel.fetch_message(self.boardID)
+                        await msg.edit(content=standings)
+                        self.updateSettings()
+                        
+                    except discord.NotFound:
+                        channel = await commands.TextChannelConverter().convert(ctx, str(self.boardChannel))
+                        message = await channel.send(standings)
+                        self.boardID = message.id  
+                        self.updateSettings()
+                        
+                else:
+                    channel = await commands.TextChannelConverter().convert(ctx, str(self.boardChannel))
+                    message = await channel.send(standings)
+                    self.boardID = message.id
+                    self.updateSettings()
+            else:
+                await channel.send(":x: Set board channel first with !setboardchannel <channelmention>")
+                return
+            
             
 
     # Add a match between two teams with a max of 3 wins
@@ -589,6 +624,46 @@ class settings:
         embed = await buildEmbed(ctx, stats, team)
         await ctx.send(embed=embed)
 
+    async def showBoard(self, ctx):
+        displayBoard = []
+        for eachTeam in self.board.keys():
+            eachTeam = "<@&" + str(eachTeam) + ">"
+            eachTeam = await commands.RoleConverter().convert(ctx, eachTeam)
+            teamElo = self.board[str(eachTeam.id)] 
+            standing = [eachTeam, teamElo]
+            displayBoard.append(standing)
+        displayBoard.sort(key=lambda x: x[1])
+        displayBoard.reverse()
+        counter = len(displayBoard) + 1
+        standings = []
+        counter = 0
+        eloList = [x[1] for x in displayBoard]
+        added = False
+
+        for eachTeam in displayBoard:
+            teamName = eachTeam[0].name
+            teamID = eachTeam[0].id
+            teamElo = eachTeam[1]
+            if eloList.count(eachTeam[1]) > 1:
+                if added == False:
+                    counter += 1
+                    added = True
+                entry = "(" + str(counter) + "T) " + str(teamName) + " - " + str(teamElo) 
+            else:
+                counter += 1
+                added = False
+                entry = "(" + str(counter) + ") " + str(teamName) + " - " + str(teamElo) 
+            if len(self.log[str(teamID)]) > 1:
+                    previousElo = self.log[str(teamID)][-2]['elo']
+                    eloDiff = teamElo - previousElo
+                    if eloDiff > 0:
+                        entry = entry + " (↑" + str(eloDiff) + ")"
+                    elif eloDiff < 0:
+                        entry = entry + " (↓" + str(abs(eloDiff)) + ")"
+            standings.append(entry)
+
+        standings = "```\n" + "\n".join(standings) + "\n```"
+        await ctx.send(standings)
             
 
         #await winLoss(logList, ctx)
@@ -716,6 +791,21 @@ async def refreshboard(ctx):
     if (set(botDict[str(ctx.guild.id)].roleList) & set(authorRoles)):
         await botDict[str(ctx.guild.id)].updateBoard(ctx)
 
+@bot.command()
+async def board(ctx):
+    authorRoles = [role.id for role in ctx.message.author.roles]
+    if (set(botDict[str(ctx.guild.id)].roleList) & set(authorRoles)):
+        await botDict[str(ctx.guild.id)].showBoard(ctx)
+
+@bot.command()
+async def hideboard(ctx, setting):
+    authorRoles = [role.id for role in ctx.message.author.roles]
+    if (set(botDict[str(ctx.guild.id)].roleList) & set(authorRoles)):
+        if setting.lower() == 'true' or setting.lower() == 'false':
+            await botDict[str(ctx.guild.id)].toggle_hideBoard(ctx, setting)
+        else:
+            await ctx.send(":x: Only true or false are valid arguments. Example: !toggleboard true")
+
 # Adds a match between two teams with a max of 3 wins.
 # Updates the elo for the teams and updates the leaderboard.
 # ex: !addmatch @Sperg Squad 3-0 @Obsidian
@@ -797,14 +887,16 @@ async def elobothelp(ctx):
     authorRoles = [role.id for role in ctx.message.author.roles]
     authorRoles = [str(i) for i in authorRoles]
     if (set([str(i) for i in botDict[str(ctx.guild.id)].roleList]) & set(authorRoles)):
-        embed=discord.Embed(title="Elo Bot", description="Help")
+        embed=discord.Embed(title="Elo Bot", description="Remember, you do NOT have to mention a role to run the command, you can insert the name of the role instead. If there is a space in the role name, use quotes around it.")
         embed.add_field(name="!elobothelp", value="Shows this menu.", inline=False)
         embed.add_field(name="!showroles", value="Shows the roles that are allowed to run !setboardchannel, !addteam, !setelo, !removeteam, and !showhistory.", inline=False)
+        embed.add_field(name="!hideboard <true/false>", value="If you do not want the updateable leaderboard, you can hide the board.", inline=False)
+        embed.add_field(name="!board", value="Sends a copy of the current leaderboard in the channel you asked from. Useful if you are hiding the leaderboard with the above command.", inline=False)
         embed.add_field(name="!addrole @role", value="Add the role to the list of allowed roles in !showroles to run elo commands.", inline=False)
         embed.add_field(name="!addteam @role integer", value="Use a role to create a team with the specified elo (replace integer with a number).", inline=False)
         embed.add_field(name="!removeteam @role", value="Deletes a team from the leaderboard.", inline=False)
         embed.add_field(name="!setelo @role integer", value="Manually set the elo of a team (replace integer with the elo you want to change it to.)", inline=False)
-        embed.add_field(name="!showhistory @role", value="Displays the last 10 elo changes for a team, and why,", inline=False)
+        embed.add_field(name="!showhistory @role", value="Displays the last 10 elo changes for a team, and why.", inline=False)
         embed.add_field(name="!addmatch @role int-int @role", value="Adds a match to the log and changes elo. Wins are capped to a max of 3.", inline=False)
         embed.add_field(name="!simulmatch @role int-int @role", value="Simulates a matches results and the elo change from said match. Wins are capped to a max of 3.", inline=False)
         await ctx.send(embed=embed)
@@ -812,6 +904,7 @@ async def elobothelp(ctx):
         embed=discord.Embed(title="Elo Bot", description="Help")
         embed.add_field(name="!elobothelp", value="Shows this menu.", inline=False)
         embed.add_field(name="!simulmatch @role int-int @role", value="Simulates a matches results and the elo change from said match. Wins are capped to a max of 3.", inline=False)
+        embed.add_field(name="!showstats @role", value="Displays statistics. You do not have to mention a role, you can enter the role name. Example: !showstats 'Apeman A'", inline=False)
         await ctx.send(embed=embed)
 
 
