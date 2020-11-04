@@ -14,7 +14,7 @@ The bot works off creating json files for each guild, the files are minimal in s
 
 `!elobothelp` - Displays the help page for the bot and this command list.
 
-`!showroles` - Print a nice embed message listing the allowed roles. Administrator and allowed roles can run this command.
+`!showsettings` - Prints an embed message listing the allowed roles as well as if the leaderboard is set to be hidden. Administrator and allowed roles can run this command.
 
 `!addroles roleMention` - Adds a role to the allowed roles list to give permission to run bot commands. Only users with administrative priveledges in Discord can add an allowed role. Does not include the !simulmatch command.
 

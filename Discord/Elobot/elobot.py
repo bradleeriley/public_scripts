@@ -724,9 +724,10 @@ async def removerole(ctx, role):
 # Print a nice embed message listing the allowed roles.
 # Administrator and allowed roles can run this command.
 @bot.command()
-async def showroles(ctx):
+async def showsettings(ctx):
     authorRoles = [role.id for role in ctx.message.author.roles]
     if (set(botDict[str(ctx.guild.id)].roleList) & set(authorRoles)) or ctx.message.author.guild_permissions.administrator:
+        boardHidden = str(botDict[str(ctx.guild.id)].hideBoard)
         if set(botDict[str(ctx.guild.id)].roleList):
             allowedRoles = botDict[str(ctx.guild.id)].roleList
             roleNames = []
@@ -735,12 +736,15 @@ async def showroles(ctx):
                 role = await commands.RoleConverter().convert(ctx, eachRole)
                 roleNames.append(role.name)
             roleNames = '\n'.join(roleNames)
-            embed=discord.Embed(title="Allowed Roles")
-            embed.add_field(name="Roles", value=roleNames, inline=True)
+            embed=discord.Embed(title="Elobot Settings")
+            embed.add_field(name="Allowed Roles", value=roleNames, inline=True)
+            #await ctx.send(embed=embed)
+            embed.add_field(name="Hide Board", value=boardHidden, inline=True)
             await ctx.send(embed=embed)
         else:
-            embed=discord.Embed(title="Allowed Roles")
+            embed=discord.Embed(title="Elobot Settings")
             embed.add_field(name="Roles", value="None", inline=True)
+            embed.add_field(name="Hide Board", value=boardHidden, inline=True)
             await ctx.send(embed=embed)
 
 # Adds team with specified elo
