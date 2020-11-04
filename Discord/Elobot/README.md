@@ -38,9 +38,12 @@ The bot works off creating json files for each guild, the files are minimal in s
 
 ## Setup
 Made with Python 3.9.0, but should also work with 3.7 or in between those two versions.
-1. Install the required libraries for the bot.
-    `pip install python-dotenv` - Used to store your Discord bot token.
+1. Install the required libraries for the bot. 
+
+    `pip install python-dotenv` - Used to store your Discord bot token. 
+
     `pip install discord.py` - The Discord framework for Python.
+
 2. Create a Discord app bot permissions of "View channels", "Send Messages", and "Read Message History" (6808).
 3. Copy the token from the bot you've just created and create a file in the same directory as the script named ".env"
 4. Inside the .env file, enter the following, but replace the DISCORD_TOKEN value with the Discord token from your bot:
