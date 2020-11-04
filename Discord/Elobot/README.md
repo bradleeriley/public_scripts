@@ -64,6 +64,27 @@ DISCORD_TOKEN=NzcxNXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
 If you need additional help creating a bot through Discord's developer portal, follow this tutorial: https://discordpy.readthedocs.io/en/latest/discord.html
 
+### Getting Started
+
+1. Add an allowed role with `!allowedrole roleMention`. You must be in this role to run commands that touch the leaderboard. If you are not in an allowed role you can't do much.
+Example: `!addrole @Organizer`
+
+2. Add teams with their starting elo. `!addteam roleMention elo`
+Example: `!addteam @Reliquary 2400`
+
+3. Add matches! `!addmatch team Score-Score team`
+Example: `!addmatch @Reliquary 3-0 @Divinity` or `!addmatch Reliquary 3-0 Divinity`
+
+4. Enable the auto updating leaderboard (disabled by default). `!hideboard true/false`
+Example: `!hideboard false`
+Note: If you want the leaderboard to stay hidden, you can view the leaderboard still with the command `!board`.
+
+5. See the stats of a team. `!showstats roleMention`
+Example: `!showstats @Reliquary` or `!showstats Reliquary` or `!showstats "Apemen A"`
+
+You can also see the command log with `!showlog` to see what was ran and when. View the match history of a team with `!showhistory roleMention`. If a team disbands or needs to be removed, make sure to use `!removeteam roleMention` to remove them. Lastly, you can simulate elo results without them changing the leaderboard with the command `!simulmatch team Score-Score team`, like `!simulmatch Reliquary 3-0 Divinity`.
+
+
 ## Command examples
 
 #### !showstats
