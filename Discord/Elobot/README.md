@@ -62,7 +62,7 @@ DISCORD_TOKEN=NzcxNXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
 If you need additional help creating a bot through Discord's developer portal, follow this tutorial: https://discordpy.readthedocs.io/en/latest/discord.html
 
-## Command exmaples
+## Command examples
 
 #### !showstats
 <img src="showstats.PNG" width="509" height="384"/>
