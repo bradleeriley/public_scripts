@@ -34,3 +34,18 @@ The bot works off creating json files for each guild, the files are minimal in s
 
 `!simulmatch roleMention Score-Score roleMention` - Same thing as !addmatch except it won't update the leaderboard or log. Just to see the elo change on possible outcomes.
 
+`!showlog` - Shows the last 10 adminitrative actions, who took them, and what day.
+
+## Setup
+Made with Python 3.9.0, but should also work with 3.7 or in between those two versions.
+1. Install the required libraries for the bot.
+    `pip install python-dotenv` - Used to store your Discord bot token.
+    `pip install discord.py` - The Discord framework for Python.
+2. Create a Discord app bot permissions of "View channels", "Send Messages", and "Read Message History" (6808).
+3. Copy the token from the bot you've just created and create a file in the same directory as the script named ".env"
+4. Inside the .env file, enter the following, but replace the DISCORD_TOKEN value with the Discord token from your bot:
+```
+# .env
+DISCORD_TOKEN=NzcxNXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+```
+If you need additional help creating a bot through Discord's developer portal, follow this tutorial: https://discordpy.readthedocs.io/en/latest/discord.html
