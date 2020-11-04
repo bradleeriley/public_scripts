@@ -7,7 +7,7 @@ The bot has some assumptions of how your Discord server is setup already. You mu
 The bot works off creating json files for each guild, the files are minimal in size and just track the leaderboard/settings. This is so data is retained if the bot has to restart.
 
 
-<img src="example.gif" width="768" height="432"/>
+<img src="pics/example.gif" width="768" height="432"/>
 
 
 ## Commands
@@ -65,10 +65,10 @@ If you need additional help creating a bot through Discord's developer portal, f
 ## Command examples
 
 #### !showstats
-<img src="showstats.PNG" width="509" height="384"/>
+<img src="pics/showstats.PNG" width="509" height="384"/>
 
 #### !showhistory
-<img src="showhistory.PNG" width="512" height="374"/>
+<img src="pics/showhistory.PNG" width="512" height="374"/>
 
 #### !addmatch & !board
-<img src="board.PNG" width="366" height="476"/>
+<img src="pics/board.PNG" width="366" height="476"/>
