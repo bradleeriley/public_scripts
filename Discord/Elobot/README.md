@@ -1,7 +1,5 @@
 # Elobot
 
-Test out the bot before you set it up here: [__Discord Bot Invite Link__](https://discord.com/api/oauth2/authorize?client_id=762718542562066494&permissions=68608&scope=bot)
-
 Elobot is a Discord bot that maintains a leaderboard of teams, as well as calculates elo rankings for standings within the leaderboard. Elo calculations are the same formula as documented within the Mordhau Fight Club (MFC) Discord. MFC is the competitive gaming scene for the game Mordhau.
 
 The bot has some assumptions of how your Discord server is setup already. You must use roles for team names. You can use a team after its already been created without mentioning the role by typing in the name of the role, and if it has a space make sure to put quotes around the team name. For exmaple, `!setelo "Apeman A" 1500` is the same as using a role mention like so `!setelo @Apeman A 1500`. 
@@ -45,6 +43,11 @@ The bot works off creating json files for each guild, the files are minimal in s
 `!board` - Sends a copy of the leaderboard to the channel called from. This is useful if you are hiding the leaderboard with the above command.
 
 ## Setup
+
+Invite the bot to your server: [__Discord Bot Invite Link__](https://discord.com/api/oauth2/authorize?client_id=762718542562066494&permissions=68608&scope=bot)
+
+Manual setup:
+
 Made with Python 3.9.0, but should also work with 3.7 or in between those two versions.
 1. Install the required libraries for the bot. 
 
